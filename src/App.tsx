@@ -36,6 +36,33 @@ type ZoneOverview = {
   current_channel_name: string | null
   default_channel_name: string | null
 }
+type PlayerDevice = {
+  device_id: string
+  device_code: string
+  device_name: string
+  organization_id: string
+  organization_name: string
+  location_id: string
+  location_name: string
+  zone_id: string
+  zone_name: string
+  platform: string | null
+  app_version: string | null
+  volume: number
+  playback_state: string
+  current_channel_id: string | null
+  current_channel_name: string | null
+  current_track_id: string | null
+  track_code: string | null
+  current_track_title: string | null
+  last_seen_at: string | null
+  paired_at: string | null
+  activation_code: string | null
+  activation_expires_at: string | null
+  is_active: boolean
+  device_status: 'online' | 'offline' | 'unpaired' | 'disabled'
+  seconds_since_last_seen: number | null
+}
 
 const dayOptions = [
   { value: 1, label: 'Mon' },
@@ -62,6 +89,7 @@ export default function App() {
   const [tracks, setTracks] = useState<Track[]>([])
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [zoneOverview, setZoneOverview] = useState<ZoneOverview[]>([])
+  const [devices, setDevices] = useState<PlayerDevice[]>([])
   const [dataLoading, setDataLoading] = useState(false)
   const [dataMsg, setDataMsg] = useState('')
 
@@ -79,6 +107,9 @@ export default function App() {
   const [scheduleStart, setScheduleStart] = useState('07:00')
   const [scheduleEnd, setScheduleEnd] = useState('12:00')
   const [scheduleDays, setScheduleDays] = useState<number[]>([1,2,3,4,5,6,7])
+
+  const [deviceName, setDeviceName] = useState('')
+  const [deviceZoneId, setDeviceZoneId] = useState('')
 
   const [audioUrl, setAudioUrl] = useState('')
   const [nowPlaying, setNowPlaying] = useState<Track | null>(null)
@@ -105,6 +136,7 @@ export default function App() {
       setTracks([])
       setSchedules([])
       setZoneOverview([])
+      setDevices([])
       return
     }
     void loadHotelData()
@@ -144,6 +176,7 @@ export default function App() {
       setZones([])
       setSchedules([])
       setZoneOverview([])
+      setDevices([])
       setDataLoading(false)
       return
     }
@@ -153,19 +186,22 @@ export default function App() {
       { data: zoneData, error: zoneError },
       { data: scheduleData, error: scheduleError },
       { data: overviewData, error: overviewError },
+      { data: deviceData, error: deviceError },
     ] = await Promise.all([
       supabase.from('locations').select('*').eq('organization_id', org.id).order('created_at', { ascending: true }),
       supabase.from('zones').select('*').order('created_at', { ascending: true }),
       supabase.from('zone_schedules').select('*').order('start_time', { ascending: true }),
       supabase.from('zone_music_overview').select('zone_id,current_channel_id,current_channel_name,default_channel_name'),
+      supabase.from('player_device_overview').select('*').order('device_name', { ascending: true }),
     ])
 
-    if (locError || zoneError || scheduleError || overviewError) {
+    if (locError || zoneError || scheduleError || overviewError || deviceError) {
       setDataMsg(
         locError?.message ??
         zoneError?.message ??
         scheduleError?.message ??
         overviewError?.message ??
+        deviceError?.message ??
         'Could not load hotel data.'
       )
       setDataLoading(false)
@@ -178,9 +214,11 @@ export default function App() {
     setZones(nextZones)
     setSchedules((scheduleData ?? []) as Schedule[])
     setZoneOverview((overviewData ?? []) as ZoneOverview[])
+    setDevices((deviceData ?? []) as PlayerDevice[])
 
     if (!zoneLocationId && nextLocations[0]) setZoneLocationId(nextLocations[0].id)
     setScheduleZoneId((current) => current || nextZones[0]?.id || '')
+    setDeviceZoneId((current) => current || nextZones[0]?.id || '')
     setDataLoading(false)
   }
 
@@ -375,6 +413,79 @@ export default function App() {
         ? current.filter((value) => value !== day)
         : [...current, day]
     )
+  }
+
+  async function createDevice(e: FormEvent) {
+    e.preventDefault()
+    if (!deviceZoneId || !deviceName.trim()) return
+
+    setDataLoading(true)
+    setDataMsg('')
+
+    const { error } = await supabase.rpc('create_player_device', {
+      p_zone_id: deviceZoneId,
+      p_name: deviceName.trim(),
+    })
+
+    if (error) {
+      setDataMsg(error.message)
+      setDataLoading(false)
+      return
+    }
+
+    setDeviceName('')
+    await loadHotelData()
+  }
+
+  async function queueDeviceCommand(deviceId: string, commandType: string) {
+    setDataLoading(true)
+    setDataMsg('')
+
+    const { error } = await supabase.rpc('queue_player_command', {
+      p_device_id: deviceId,
+      p_command_type: commandType,
+      p_payload: {},
+    })
+
+    if (error) setDataMsg(error.message)
+    else setDataMsg('Command queued: ' + commandType)
+
+    setDataLoading(false)
+  }
+
+  async function refreshPairingCode(deviceId: string) {
+    setDataLoading(true)
+    setDataMsg('')
+
+    const { error } = await supabase.rpc('refresh_player_pairing_code', {
+      p_device_id: deviceId,
+    })
+
+    if (error) {
+      setDataMsg(error.message)
+      setDataLoading(false)
+      return
+    }
+
+    await loadHotelData()
+  }
+
+  async function setDeviceVolume(deviceId: string, volume: number) {
+    setDataLoading(true)
+    setDataMsg('')
+
+    const { error } = await supabase.rpc('set_player_volume', {
+      p_device_id: deviceId,
+      p_volume: volume,
+    })
+
+    if (error) {
+      setDataMsg(error.message)
+      setDataLoading(false)
+      return
+    }
+
+    await loadHotelData()
   }
 
   async function playTrack(track: Track) {
@@ -578,6 +689,100 @@ export default function App() {
                   </article>
                 ))
               )}
+            </section>
+
+            <section className="devices-section">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Playback network</div>
+                  <h2>Devices</h2>
+                </div>
+                <p>Create and manage the player assigned to each hotel zone.</p>
+              </div>
+
+              <div className="devices-layout">
+                <article className="panel">
+                  <form onSubmit={createDevice} className="setup-form">
+                    <label>Device name</label>
+                    <input
+                      value={deviceName}
+                      onChange={(e) => setDeviceName(e.target.value)}
+                      placeholder="Lobby Player 01"
+                      required
+                    />
+
+                    <label>Zone</label>
+                    <select value={deviceZoneId} onChange={(e) => setDeviceZoneId(e.target.value)} required>
+                      <option value="">Select zone</option>
+                      {zones.map((zone) => (
+                        <option key={zone.id} value={zone.id}>{zone.name}</option>
+                      ))}
+                    </select>
+
+                    <button className="primary" disabled={dataLoading || zones.length === 0}>
+                      {dataLoading ? 'Creating…' : 'Create player device'}
+                    </button>
+                  </form>
+                </article>
+
+                <div className="device-grid">
+                  {devices.length === 0 ? (
+                    <div className="empty-state">No player devices yet. Create one for a zone.</div>
+                  ) : (
+                    devices.map((device) => (
+                      <article className="device-card" key={device.device_id}>
+                        <div className="device-card-top">
+                          <div>
+                            <span className={'status-dot ' + device.device_status}></span>
+                            <span className="device-status">{device.device_status}</span>
+                            <h3>{device.device_name}</h3>
+                            <p>{device.location_name} · {device.zone_name}</p>
+                          </div>
+                          <span className="device-code">{device.device_code}</span>
+                        </div>
+
+                        <div className="device-meta">
+                          <div><span>Channel</span><strong>{device.current_channel_name ?? 'Not reported'}</strong></div>
+                          <div><span>Playback</span><strong>{device.playback_state}</strong></div>
+                          <div><span>Volume</span><strong>{device.volume}%</strong></div>
+                          <div><span>Last seen</span><strong>{device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : 'Never'}</strong></div>
+                        </div>
+
+                        {device.device_status === 'unpaired' && (
+                          <div className="pairing-box">
+                            <span>Pairing code</span>
+                            <strong>{device.activation_code ?? '—'}</strong>
+                            <button onClick={() => void refreshPairingCode(device.device_id)} disabled={dataLoading}>
+                              New code
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="volume-control">
+                          <span>Volume</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={device.volume}
+                            onChange={(e) => void setDeviceVolume(device.device_id, Number(e.target.value))}
+                            disabled={dataLoading}
+                          />
+                        </div>
+
+                        <div className="device-actions">
+                          <button onClick={() => void queueDeviceCommand(device.device_id, 'play')} disabled={dataLoading}>Play</button>
+                          <button onClick={() => void queueDeviceCommand(device.device_id, 'pause')} disabled={dataLoading}>Pause</button>
+                          <button onClick={() => void queueDeviceCommand(device.device_id, 'next')} disabled={dataLoading}>Next</button>
+                          <button onClick={() => void queueDeviceCommand(device.device_id, 'sync')} disabled={dataLoading}>Sync</button>
+                          <button onClick={() => void queueDeviceCommand(device.device_id, 'restart')} disabled={dataLoading}>Restart</button>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </div>
             </section>
 
             <section className="schedule-section">
