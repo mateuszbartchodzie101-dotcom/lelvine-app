@@ -154,3 +154,56 @@ select{appearance:auto}
   .track-row>span:nth-of-type(2),.track-row>span:nth-of-type(3){display:none}
   .player-bar{left:10px;right:10px;bottom:10px;grid-template-columns:1fr}
 }
+
+
+/* LELVINE PLAYER RUNTIME */
+.runtime-shell{min-height:100vh;background:radial-gradient(circle at 70% 20%,rgba(172,120,74,.16),transparent 26%),#090909;padding:0 6vw 70px;color:#f4efe8}
+.runtime-header{height:92px;border-bottom:1px solid #24211f;display:flex;align-items:center;justify-content:space-between}
+.runtime-online{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#a9b99c;display:flex;align-items:center;gap:8px}
+.runtime-online i{width:7px;height:7px;border-radius:50%;background:#8ea77c;box-shadow:0 0 12px rgba(142,167,124,.5)}
+.pair-screen{width:min(560px,100%);margin:0 auto;padding:14vh 0 0}
+.pair-screen h1,.runtime-console h1,.runtime-track h2{font-family:'Playfair Display',serif;font-weight:400}
+.pair-screen h1{font-size:58px;margin:12px 0}
+.pair-screen>p{color:#938a82;margin-bottom:35px}
+.pair-form{border:1px solid #302b27;background:linear-gradient(160deg,#111,#0c0c0c);padding:26px}
+.pair-code-input{text-transform:uppercase;font-family:'DM Sans',sans-serif;font-size:25px;letter-spacing:.2em;text-align:center;padding:20px}
+.runtime-console{max-width:1180px;margin:0 auto;padding-top:70px}
+.runtime-topline{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:44px}
+.runtime-topline h1{font-size:54px;margin:9px 0 5px}
+.runtime-topline p{margin:0;color:#8f8881}
+.runtime-code{border:1px solid #352f2b;padding:10px 13px;color:#9c8c7d;font-size:10px;letter-spacing:.16em}
+.runtime-now{display:grid;grid-template-columns:340px 1fr;min-height:340px;border:1px solid #2c2825;background:#0d0d0d}
+.runtime-art{display:grid;place-items:center;background:radial-gradient(circle at 60% 35%,rgba(177,130,84,.34),transparent 28%),linear-gradient(145deg,#21170f,#0b0b0b);border-right:1px solid #2c2825}
+.runtime-art span{font-size:16px;letter-spacing:.42em;color:#d9c6b3}
+.runtime-track{display:flex;flex-direction:column;justify-content:center;padding:48px}
+.runtime-track h2{font-size:50px;margin:12px 0 10px}
+.runtime-track>p{color:#a19890}
+.runtime-state{display:flex;gap:18px;align-items:center;margin-top:24px;color:#8f8881;font-size:11px;text-transform:uppercase;letter-spacing:.12em}
+.state-pill{border:1px solid #3a342f;padding:7px 10px}
+.state-pill.playing{border-color:#65745c;color:#a9b99c}
+.state-pill.paused{border-color:#806a4e;color:#c7aa84}
+.runtime-controls{display:flex;gap:8px;margin-top:14px}
+.runtime-controls button{flex:1;min-height:48px;border:1px solid #38322e;background:#0e0e0e;color:#d9d1c9;text-transform:uppercase;letter-spacing:.14em;font-size:9px;cursor:pointer}
+.runtime-controls button:hover{border-color:#8b6a49}
+.runtime-volume{display:grid;grid-template-columns:auto 1fr 50px;gap:18px;align-items:center;border:1px solid #292623;background:#0d0d0d;margin-top:14px;padding:20px}
+.runtime-volume span{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:#837a72}
+.runtime-volume input{padding:0;border:0;background:transparent}
+.runtime-volume strong{font-weight:400;text-align:right;font-size:12px}
+.runtime-info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.runtime-info div{border:1px solid #292623;background:#0d0d0d;padding:18px;display:flex;flex-direction:column;gap:7px}
+.runtime-info span{font-size:9px;text-transform:uppercase;letter-spacing:.13em;color:#746d67}
+.runtime-info strong{font-size:12px;font-weight:400;color:#d0c6bc}
+.runtime-unpair{margin-top:25px;border:0;background:none;color:#756a62;font-size:10px;text-transform:uppercase;letter-spacing:.12em;cursor:pointer;padding:0}
+
+@media(max-width:800px){
+  .runtime-shell{padding:0 22px 50px}
+  .pair-screen{padding-top:9vh}
+  .pair-screen h1{font-size:44px}
+  .runtime-topline{flex-direction:column}
+  .runtime-topline h1{font-size:40px}
+  .runtime-now{grid-template-columns:1fr}
+  .runtime-art{min-height:220px;border-right:0;border-bottom:1px solid #2c2825}
+  .runtime-track{padding:30px}
+  .runtime-track h2{font-size:38px}
+  .runtime-info{grid-template-columns:1fr 1fr}
+}
