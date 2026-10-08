@@ -46,7 +46,7 @@ select{appearance:auto}
 .workspace-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
 .panel{border:1px solid #292623;background:linear-gradient(160deg,#111,#0c0c0c);padding:28px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.location-list,.music-library,.schedule-section{margin-top:50px}
+.location-list,.music-library,.schedule-section,.devices-section{margin-top:50px}
 .section-heading{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin-bottom:16px}
 .section-heading h2{margin-bottom:0}
 .section-heading>p{max-width:420px;color:#8f8881;font-size:13px;text-align:right;margin:0}
@@ -65,6 +65,30 @@ select{appearance:auto}
 .channel-select{padding:11px 12px;background:#11100f}
 .empty-state{border:1px dashed #34302d;padding:32px;color:#8f8881}
 .refresh:disabled{opacity:.5}
+
+.devices-layout{display:grid;grid-template-columns:minmax(300px,.55fr) 1.45fr;gap:14px;align-items:start}
+.device-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.device-card{border:1px solid #292623;background:linear-gradient(160deg,#111,#0b0b0b);padding:22px}
+.device-card-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+.device-card-top h3{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin:10px 0 4px}
+.device-card-top p{margin:0;color:#8f8881;font-size:12px}
+.device-status{text-transform:uppercase;letter-spacing:.14em;font-size:9px;color:#9e958c;margin-left:7px}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#746d67}
+.status-dot.online{background:#8ea77c;box-shadow:0 0 12px rgba(142,167,124,.45)}
+.status-dot.unpaired{background:#c29667}
+.status-dot.disabled{background:#6f514d}
+.device-code{font-size:9px;letter-spacing:.14em;color:#8e8276;border:1px solid #302b27;padding:7px 9px}
+.device-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:22px 0}
+.device-meta div{border-top:1px solid #292623;padding-top:10px;display:flex;flex-direction:column;gap:4px}
+.device-meta span,.pairing-box span,.volume-control>span{font-size:9px;text-transform:uppercase;letter-spacing:.13em;color:#7f7770}
+.device-meta strong{font-size:12px;font-weight:400;color:#d8c9b9}
+.pairing-box{border:1px solid #4a3d32;background:#15110e;padding:14px;display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;margin:12px 0}
+.pairing-box strong{font-family:'Playfair Display',serif;font-size:22px;letter-spacing:.12em}
+.pairing-box button,.device-actions button{border:1px solid #3d3732;background:#101010;color:#cfc4ba;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:.1em;cursor:pointer}
+.volume-control{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin:18px 0}
+.volume-control input{padding:0;border:0;background:transparent}
+.device-actions{display:flex;flex-wrap:wrap;gap:7px;border-top:1px solid #292623;padding-top:16px}
+.device-actions button:hover,.pairing-box button:hover{border-color:#8b6a49}
 
 .schedule-layout{display:grid;grid-template-columns:minmax(320px,.75fr) 1.25fr;gap:14px}
 .day-selector{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
@@ -109,7 +133,8 @@ select{appearance:auto}
 
 @media(max-width:1150px){
   .channel-grid{grid-template-columns:repeat(2,1fr)}
-  .schedule-layout{grid-template-columns:1fr}
+  .schedule-layout,.devices-layout{grid-template-columns:1fr}
+  .device-grid{grid-template-columns:1fr}
 }
 
 @media(max-width:900px){
