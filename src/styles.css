@@ -29,7 +29,7 @@ select{appearance:auto}
 .msg,.data-message{margin-top:10px;padding:12px;border:1px solid #43392f;background:#15120f;color:#c8b8a8;font-size:12px}
 .loading{min-height:100vh;display:grid;place-items:center;letter-spacing:.36em}
 
-.dash{min-height:100vh;padding:0 6vw 90px;background:radial-gradient(circle at 80% 10%,rgba(160,111,70,.12),transparent 25%),#090909}
+.dash{min-height:100vh;padding:0 6vw 140px;background:radial-gradient(circle at 80% 10%,rgba(160,111,70,.12),transparent 25%),#090909}
 .dash header{height:92px;border-bottom:1px solid #24211f;display:flex;justify-content:space-between;align-items:center}
 .dash header button,.refresh{background:none;color:#ddd;border:1px solid #4a423a;padding:10px 16px;cursor:pointer}
 .welcome{padding:70px 0 38px}
@@ -46,10 +46,10 @@ select{appearance:auto}
 .workspace-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
 .panel{border:1px solid #292623;background:linear-gradient(160deg,#111,#0c0c0c);padding:28px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.location-list,.music-library{margin-top:50px}
+.location-list,.music-library,.schedule-section{margin-top:50px}
 .section-heading{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin-bottom:16px}
 .section-heading h2{margin-bottom:0}
-.section-heading>p{max-width:360px;color:#8f8881;font-size:13px;text-align:right;margin:0}
+.section-heading>p{max-width:420px;color:#8f8881;font-size:13px;text-align:right;margin:0}
 .location-card{border:1px solid #292623;background:#0d0d0d;padding:24px;margin-bottom:12px}
 .location-top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
 .location-top h3{font-family:'Playfair Display',serif;font-weight:400;font-size:26px;margin:0 0 4px}
@@ -66,16 +66,50 @@ select{appearance:auto}
 .empty-state{border:1px dashed #34302d;padding:32px;color:#8f8881}
 .refresh:disabled{opacity:.5}
 
+.schedule-layout{display:grid;grid-template-columns:minmax(320px,.75fr) 1.25fr;gap:14px}
+.day-selector{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.day{border:1px solid #3a342f;background:#0d0d0d;color:#8f8881;padding:9px 4px;font-size:10px;cursor:pointer}
+.day.active{background:#e9dfd3;color:#111;border-color:#e9dfd3}
+.schedule-list{border:1px solid #292623;background:#0d0d0d;padding:16px 22px}
+.schedule-row{display:grid;grid-template-columns:1.4fr .65fr 1fr auto;gap:18px;align-items:center;padding:17px 0;border-top:1px solid #25211e}
+.schedule-row:first-child{border-top:0}
+.schedule-row>div:first-child{display:flex;flex-direction:column;gap:4px}
+.schedule-row strong{font-family:'Playfair Display',serif;font-size:18px;font-weight:400}
+.schedule-row span,.schedule-days{font-size:11px;color:#8f8881}
+.schedule-time{font-size:12px;color:#d8c9b9}
+.danger-link{border:0;background:none;color:#a68268;font-size:10px;text-transform:uppercase;letter-spacing:.12em;cursor:pointer}
+
 .channel-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-.channel-card{min-height:280px;border:1px solid #292623;background:linear-gradient(160deg,#12100f,#0b0b0b);padding:22px;display:flex;flex-direction:column;justify-content:space-between}
+.channel-card{min-height:280px;border:1px solid #292623;background:linear-gradient(160deg,#12100f,#0b0b0b);padding:22px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;color:inherit;cursor:pointer}
+.channel-card.selected{border-color:#8b6a49;background:linear-gradient(160deg,#17130f,#0b0b0b)}
 .channel-number{font-size:10px;color:#b48659;letter-spacing:.2em}
 .channel-card h3{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin:30px 0 8px}
 .channel-mood{color:#c3a98f;font-size:10px;text-transform:uppercase;letter-spacing:.12em;line-height:1.6}
 .channel-description{color:#8f8881;font-size:12px;line-height:1.6}
 .channel-status{border-top:1px solid #28231f;padding-top:14px;color:#8e8276;font-size:9px;text-transform:uppercase;letter-spacing:.18em}
 
+.track-panel{border:1px solid #292623;background:#0d0d0d;margin-top:12px;padding:24px}
+.track-panel-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px}
+.track-panel-head h3{font-family:'Playfair Display',serif;font-size:28px;font-weight:400;margin:8px 0 0}
+.track-panel-head>span{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:#a8937f}
+.track-list{border-top:1px solid #292623}
+.track-row{display:grid;grid-template-columns:80px minmax(180px,1fr) 90px 90px 86px;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid #222}
+.track-row strong{font-weight:400}
+.track-row>span{color:#8f8881;font-size:11px}
+.track-code{color:#b48659!important;letter-spacing:.08em}
+.play-button{border:1px solid #413a34;background:#111;color:#ddd;padding:8px 10px;font-size:10px;cursor:pointer}
+.play-button:disabled{opacity:.35;cursor:not-allowed}
+
+.player-bar{position:fixed;z-index:20;left:5%;right:5%;bottom:20px;border:1px solid #4b4037;background:rgba(12,11,10,.96);backdrop-filter:blur(16px);padding:14px 18px;display:grid;grid-template-columns:1fr minmax(260px,520px) auto;gap:18px;align-items:center;box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.player-bar>div{display:flex;flex-direction:column;gap:4px}
+.player-bar span{font-size:9px;text-transform:uppercase;letter-spacing:.16em;color:#a78d72}
+.player-bar strong{font-family:'Playfair Display',serif;font-weight:400}
+.player-bar audio{width:100%}
+.player-bar button{border:0;background:none;color:#aaa;cursor:pointer}
+
 @media(max-width:1150px){
   .channel-grid{grid-template-columns:repeat(2,1fr)}
+  .schedule-layout{grid-template-columns:1fr}
 }
 
 @media(max-width:900px){
@@ -89,4 +123,9 @@ select{appearance:auto}
   .channel-grid{grid-template-columns:1fr}
   .section-heading{align-items:flex-start;flex-direction:column}
   .section-heading>p{text-align:left}
+  .schedule-row{grid-template-columns:1fr}
+  .day-selector{grid-template-columns:repeat(4,1fr)}
+  .track-row{grid-template-columns:70px 1fr 70px}
+  .track-row>span:nth-of-type(2),.track-row>span:nth-of-type(3){display:none}
+  .player-bar{left:10px;right:10px;bottom:10px;grid-template-columns:1fr}
 }
