@@ -4,9 +4,48 @@ import { supabase } from './lib/supabase'
 
 type Mode = 'signin' | 'signup' | 'forgot'
 type Organization = { id: string; name: string; owner_id: string; created_at: string }
-type Location = { id: string; organization_id: string; name: string; city: string | null; country: string | null; created_at: string }
+type Location = { id: string; organization_id: string; name: string; city: string | null; country: string | null; timezone?: string; created_at: string }
 type Zone = { id: string; location_id: string; name: string; channel_id: string | null; created_at: string }
 type Channel = { id: string; name: string; slug: string; description: string | null; mood: string | null; active: boolean; created_at: string }
+type Track = {
+  id: string
+  channel_id: string
+  track_code: string | null
+  title: string
+  audio_url: string | null
+  bpm: number | null
+  musical_key: string | null
+  storage_path: string | null
+  duration_seconds: number | null
+  sort_order: number
+}
+type Schedule = {
+  id: string
+  zone_id: string
+  channel_id: string
+  name: string | null
+  days_of_week: number[]
+  start_time: string
+  end_time: string
+  priority: number
+  active: boolean
+}
+type ZoneOverview = {
+  zone_id: string
+  current_channel_id: string | null
+  current_channel_name: string | null
+  default_channel_name: string | null
+}
+
+const dayOptions = [
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' },
+  { value: 7, label: 'Sun' },
+]
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('signin')
@@ -20,6 +59,9 @@ export default function App() {
   const [locations, setLocations] = useState<Location[]>([])
   const [zones, setZones] = useState<Zone[]>([])
   const [channels, setChannels] = useState<Channel[]>([])
+  const [tracks, setTracks] = useState<Track[]>([])
+  const [schedules, setSchedules] = useState<Schedule[]>([])
+  const [zoneOverview, setZoneOverview] = useState<ZoneOverview[]>([])
   const [dataLoading, setDataLoading] = useState(false)
   const [dataMsg, setDataMsg] = useState('')
 
@@ -29,6 +71,17 @@ export default function App() {
   const [country, setCountry] = useState('')
   const [zoneName, setZoneName] = useState('')
   const [zoneLocationId, setZoneLocationId] = useState('')
+
+  const [selectedChannelId, setSelectedChannelId] = useState('')
+  const [scheduleZoneId, setScheduleZoneId] = useState('')
+  const [scheduleChannelId, setScheduleChannelId] = useState('')
+  const [scheduleName, setScheduleName] = useState('')
+  const [scheduleStart, setScheduleStart] = useState('07:00')
+  const [scheduleEnd, setScheduleEnd] = useState('12:00')
+  const [scheduleDays, setScheduleDays] = useState<number[]>([1,2,3,4,5,6,7])
+
+  const [audioUrl, setAudioUrl] = useState('')
+  const [nowPlaying, setNowPlaying] = useState<Track | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -49,6 +102,9 @@ export default function App() {
       setLocations([])
       setZones([])
       setChannels([])
+      setTracks([])
+      setSchedules([])
+      setZoneOverview([])
       return
     }
     void loadHotelData()
@@ -58,18 +114,27 @@ export default function App() {
     setDataLoading(true)
     setDataMsg('')
 
-    const [{ data: orgs, error: orgError }, { data: channelData, error: channelError }] = await Promise.all([
+    const [
+      { data: orgs, error: orgError },
+      { data: channelData, error: channelError },
+      { data: trackData, error: trackError },
+    ] = await Promise.all([
       supabase.from('organizations').select('*').order('created_at', { ascending: true }).limit(1),
       supabase.from('channels').select('*').eq('active', true).order('created_at', { ascending: true }),
+      supabase.from('tracks').select('*').eq('active', true).order('track_code', { ascending: true }),
     ])
 
-    if (orgError || channelError) {
-      setDataMsg(orgError?.message ?? channelError?.message ?? 'Could not load data.')
+    if (orgError || channelError || trackError) {
+      setDataMsg(orgError?.message ?? channelError?.message ?? trackError?.message ?? 'Could not load data.')
       setDataLoading(false)
       return
     }
 
-    setChannels((channelData ?? []) as Channel[])
+    const nextChannels = (channelData ?? []) as Channel[]
+    setChannels(nextChannels)
+    setTracks((trackData ?? []) as Track[])
+    setSelectedChannelId((current) => current || nextChannels[0]?.id || '')
+    setScheduleChannelId((current) => current || nextChannels[0]?.id || '')
 
     const org = (orgs?.[0] ?? null) as Organization | null
     setOrganization(org)
@@ -77,26 +142,45 @@ export default function App() {
     if (!org) {
       setLocations([])
       setZones([])
+      setSchedules([])
+      setZoneOverview([])
       setDataLoading(false)
       return
     }
 
-    const [{ data: locData, error: locError }, { data: zoneData, error: zoneError }] = await Promise.all([
+    const [
+      { data: locData, error: locError },
+      { data: zoneData, error: zoneError },
+      { data: scheduleData, error: scheduleError },
+      { data: overviewData, error: overviewError },
+    ] = await Promise.all([
       supabase.from('locations').select('*').eq('organization_id', org.id).order('created_at', { ascending: true }),
       supabase.from('zones').select('*').order('created_at', { ascending: true }),
+      supabase.from('zone_schedules').select('*').order('start_time', { ascending: true }),
+      supabase.from('zone_music_overview').select('zone_id,current_channel_id,current_channel_name,default_channel_name'),
     ])
 
-    if (locError || zoneError) {
-      setDataMsg(locError?.message ?? zoneError?.message ?? 'Could not load hotel data.')
+    if (locError || zoneError || scheduleError || overviewError) {
+      setDataMsg(
+        locError?.message ??
+        zoneError?.message ??
+        scheduleError?.message ??
+        overviewError?.message ??
+        'Could not load hotel data.'
+      )
       setDataLoading(false)
       return
     }
 
     const nextLocations = (locData ?? []) as Location[]
+    const nextZones = (zoneData ?? []) as Zone[]
     setLocations(nextLocations)
-    setZones((zoneData ?? []) as Zone[])
+    setZones(nextZones)
+    setSchedules((scheduleData ?? []) as Schedule[])
+    setZoneOverview((overviewData ?? []) as ZoneOverview[])
 
     if (!zoneLocationId && nextLocations[0]) setZoneLocationId(nextLocations[0].id)
+    setScheduleZoneId((current) => current || nextZones[0]?.id || '')
     setDataLoading(false)
   }
 
@@ -173,6 +257,7 @@ export default function App() {
         name: locationName.trim(),
         city: city.trim() || null,
         country: country.trim() || null,
+        timezone: 'Europe/Warsaw',
       })
       .select()
       .single()
@@ -211,7 +296,9 @@ export default function App() {
       return
     }
 
-    setZones((current) => [...current, data as Zone])
+    const created = data as Zone
+    setZones((current) => [...current, created])
+    setScheduleZoneId((current) => current || created.id)
     setZoneName('')
     setDataLoading(false)
   }
@@ -221,12 +308,10 @@ export default function App() {
     setDataMsg('')
 
     const nextChannelId = channelId || null
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('zones')
       .update({ channel_id: nextChannelId })
       .eq('id', zoneId)
-      .select()
-      .single()
 
     if (error) {
       setDataMsg(error.message)
@@ -234,8 +319,89 @@ export default function App() {
       return
     }
 
-    setZones((current) => current.map((zone) => zone.id === zoneId ? data as Zone : zone))
-    setDataLoading(false)
+    await loadHotelData()
+  }
+
+  async function createSchedule(e: FormEvent) {
+    e.preventDefault()
+    if (!scheduleZoneId || !scheduleChannelId || scheduleDays.length === 0) return
+
+    setDataLoading(true)
+    setDataMsg('')
+
+    const { error } = await supabase
+      .from('zone_schedules')
+      .insert({
+        zone_id: scheduleZoneId,
+        channel_id: scheduleChannelId,
+        name: scheduleName.trim() || null,
+        days_of_week: [...scheduleDays].sort((a, b) => a - b),
+        start_time: scheduleStart,
+        end_time: scheduleEnd,
+        active: true,
+      })
+
+    if (error) {
+      setDataMsg(error.message)
+      setDataLoading(false)
+      return
+    }
+
+    setScheduleName('')
+    await loadHotelData()
+  }
+
+  async function deleteSchedule(id: string) {
+    setDataLoading(true)
+    setDataMsg('')
+
+    const { error } = await supabase
+      .from('zone_schedules')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      setDataMsg(error.message)
+      setDataLoading(false)
+      return
+    }
+
+    await loadHotelData()
+  }
+
+  function toggleDay(day: number) {
+    setScheduleDays((current) =>
+      current.includes(day)
+        ? current.filter((value) => value !== day)
+        : [...current, day]
+    )
+  }
+
+  async function playTrack(track: Track) {
+    setDataMsg('')
+
+    if (track.audio_url) {
+      setNowPlaying(track)
+      setAudioUrl(track.audio_url)
+      return
+    }
+
+    if (!track.storage_path) {
+      setDataMsg('This track is in the catalog, but no audio file has been uploaded yet.')
+      return
+    }
+
+    const { data, error } = await supabase.storage
+      .from('music')
+      .createSignedUrl(track.storage_path, 3600)
+
+    if (error || !data?.signedUrl) {
+      setDataMsg(error?.message ?? 'Could not create audio link.')
+      return
+    }
+
+    setNowPlaying(track)
+    setAudioUrl(data.signedUrl)
   }
 
   const channelsById = useMemo(() => {
@@ -243,6 +409,18 @@ export default function App() {
     for (const channel of channels) map[channel.id] = channel
     return map
   }, [channels])
+
+  const zonesById = useMemo(() => {
+    const map: Record<string, Zone> = {}
+    for (const zone of zones) map[zone.id] = zone
+    return map
+  }, [zones])
+
+  const overviewByZone = useMemo(() => {
+    const map: Record<string, ZoneOverview> = {}
+    for (const item of zoneOverview) map[item.zone_id] = item
+    return map
+  }, [zoneOverview])
 
   const zonesByLocation = useMemo(() => {
     const map: Record<string, Zone[]> = {}
@@ -252,6 +430,18 @@ export default function App() {
     }
     return map
   }, [zones])
+
+  const tracksByChannel = useMemo(() => {
+    const map: Record<string, Track[]> = {}
+    for (const track of tracks) {
+      if (!map[track.channel_id]) map[track.channel_id] = []
+      map[track.channel_id].push(track)
+    }
+    return map
+  }, [tracks])
+
+  const selectedChannel = channels.find((channel) => channel.id === selectedChannelId) ?? channels[0]
+  const selectedTracks = selectedChannel ? (tracksByChannel[selectedChannel.id] ?? []) : []
 
   if (authLoading && !session) return <main className="loading">LELVINE</main>
 
@@ -273,7 +463,7 @@ export default function App() {
           <article><strong>{organization ? 1 : 0}</strong><span>Organization</span></article>
           <article><strong>{locations.length}</strong><span>Locations</span></article>
           <article><strong>{zones.length}</strong><span>Zones</span></article>
-          <article><strong>{channels.length}</strong><span>Music channels</span></article>
+          <article><strong>{tracks.length}</strong><span>Tracks</span></article>
         </section>
 
         {dataMsg && <div className="data-message">{dataMsg}</div>}
@@ -360,12 +550,14 @@ export default function App() {
                         <em>No zones yet</em>
                       ) : (
                         (zonesByLocation[location.id] ?? []).map((zone) => {
-                          const assigned = zone.channel_id ? channelsById[zone.channel_id] : null
+                          const current = overviewByZone[zone.id]
                           return (
                             <div className="zone-row" key={zone.id}>
                               <div className="zone-name">
                                 <strong>{zone.name}</strong>
-                                <span>{assigned ? assigned.name : 'No music assigned'}</span>
+                                <span>
+                                  Now playing: {current?.current_channel_name ?? 'No channel active'}
+                                </span>
                               </div>
                               <select
                                 className="channel-select"
@@ -373,7 +565,7 @@ export default function App() {
                                 onChange={(e) => void assignChannel(zone.id, e.target.value)}
                                 disabled={dataLoading}
                               >
-                                <option value="">Select channel</option>
+                                <option value="">Default channel</option>
                                 {channels.map((channel) => (
                                   <option key={channel.id} value={channel.id}>{channel.name}</option>
                                 ))}
@@ -388,29 +580,159 @@ export default function App() {
               )}
             </section>
 
+            <section className="schedule-section">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Dayparting</div>
+                  <h2>Schedule Editor</h2>
+                </div>
+                <p>Choose which sound environment should run in each zone at different times of day.</p>
+              </div>
+
+              <div className="schedule-layout">
+                <article className="panel">
+                  <form onSubmit={createSchedule} className="setup-form">
+                    <label>Zone</label>
+                    <select value={scheduleZoneId} onChange={(e) => setScheduleZoneId(e.target.value)} required>
+                      <option value="">Select zone</option>
+                      {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name}</option>)}
+                    </select>
+
+                    <label>Music channel</label>
+                    <select value={scheduleChannelId} onChange={(e) => setScheduleChannelId(e.target.value)} required>
+                      <option value="">Select channel</option>
+                      {channels.map((channel) => <option key={channel.id} value={channel.id}>{channel.name}</option>)}
+                    </select>
+
+                    <label>Schedule name</label>
+                    <input value={scheduleName} onChange={(e) => setScheduleName(e.target.value)} placeholder="Morning lobby" />
+
+                    <div className="two-col">
+                      <div>
+                        <label>Start</label>
+                        <input type="time" value={scheduleStart} onChange={(e) => setScheduleStart(e.target.value)} required />
+                      </div>
+                      <div>
+                        <label>End</label>
+                        <input type="time" value={scheduleEnd} onChange={(e) => setScheduleEnd(e.target.value)} required />
+                      </div>
+                    </div>
+
+                    <label>Days</label>
+                    <div className="day-selector">
+                      {dayOptions.map((day) => (
+                        <button
+                          type="button"
+                          key={day.value}
+                          className={scheduleDays.includes(day.value) ? 'day active' : 'day'}
+                          onClick={() => toggleDay(day.value)}
+                        >
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button className="primary" disabled={dataLoading || zones.length === 0}>
+                      {dataLoading ? 'Saving…' : 'Add schedule'}
+                    </button>
+                  </form>
+                </article>
+
+                <article className="schedule-list">
+                  {schedules.length === 0 ? (
+                    <div className="empty-state">No schedules yet. Your zone will use its default channel.</div>
+                  ) : (
+                    schedules.map((schedule) => (
+                      <div className="schedule-row" key={schedule.id}>
+                        <div>
+                          <strong>{schedule.name || channelsById[schedule.channel_id]?.name || 'Schedule'}</strong>
+                          <span>
+                            {zonesById[schedule.zone_id]?.name ?? 'Zone'} · {channelsById[schedule.channel_id]?.name ?? 'Channel'}
+                          </span>
+                        </div>
+                        <div className="schedule-time">
+                          {schedule.start_time.slice(0,5)}–{schedule.end_time.slice(0,5)}
+                        </div>
+                        <div className="schedule-days">
+                          {schedule.days_of_week.map((day) => dayOptions.find((item) => item.value === day)?.label).filter(Boolean).join(' ')}
+                        </div>
+                        <button className="danger-link" onClick={() => void deleteSchedule(schedule.id)} disabled={dataLoading}>Remove</button>
+                      </div>
+                    ))
+                  )}
+                </article>
+              </div>
+            </section>
+
             <section className="music-library">
               <div className="section-heading">
                 <div>
                   <div className="eyebrow">LELVINE Music</div>
                   <h2>Music Library</h2>
                 </div>
-                <p>Curated sound environments for hospitality spaces.</p>
+                <p>50 curated tracks across five hospitality sound environments.</p>
               </div>
 
               <div className="channel-grid">
                 {channels.map((channel, index) => (
-                  <article className="channel-card" key={channel.id}>
+                  <button
+                    className={selectedChannel?.id === channel.id ? 'channel-card selected' : 'channel-card'}
+                    key={channel.id}
+                    onClick={() => setSelectedChannelId(channel.id)}
+                  >
                     <div className="channel-number">{String(index + 1).padStart(2, '0')}</div>
                     <div>
                       <h3>{channel.name}</h3>
                       <p className="channel-mood">{channel.mood}</p>
                       <p className="channel-description">{channel.description}</p>
                     </div>
-                    <div className="channel-status">Available</div>
-                  </article>
+                    <div className="channel-status">{(tracksByChannel[channel.id] ?? []).length} tracks</div>
+                  </button>
                 ))}
               </div>
+
+              {selectedChannel && (
+                <div className="track-panel">
+                  <div className="track-panel-head">
+                    <div>
+                      <div className="eyebrow">Selected channel</div>
+                      <h3>{selectedChannel.name}</h3>
+                    </div>
+                    <span>{selectedTracks.length} tracks</span>
+                  </div>
+
+                  <div className="track-list">
+                    {selectedTracks.map((track) => (
+                      <div className="track-row" key={track.id}>
+                        <span className="track-code">{track.track_code}</span>
+                        <strong>{track.title}</strong>
+                        <span>{track.bpm ? track.bpm + ' BPM' : '—'}</span>
+                        <span>{track.musical_key ?? '—'}</span>
+                        <button
+                          className="play-button"
+                          onClick={() => void playTrack(track)}
+                          disabled={!track.audio_url && !track.storage_path}
+                          title={!track.audio_url && !track.storage_path ? 'Upload audio first' : 'Play'}
+                        >
+                          {!track.audio_url && !track.storage_path ? 'No audio' : 'Play'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
+
+            {nowPlaying && audioUrl && (
+              <div className="player-bar">
+                <div>
+                  <span>Now playing</span>
+                  <strong>{nowPlaying.track_code} · {nowPlaying.title}</strong>
+                </div>
+                <audio controls autoPlay src={audioUrl} />
+                <button onClick={() => { setAudioUrl(''); setNowPlaying(null) }}>Close</button>
+              </div>
+            )}
           </>
         )}
       </main>
