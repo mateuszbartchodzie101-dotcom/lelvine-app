@@ -5,7 +5,8 @@ import { supabase } from './lib/supabase'
 type Mode = 'signin' | 'signup' | 'forgot'
 type Organization = { id: string; name: string; owner_id: string; created_at: string }
 type Location = { id: string; organization_id: string; name: string; city: string | null; country: string | null; created_at: string }
-type Zone = { id: string; location_id: string; name: string; created_at: string }
+type Zone = { id: string; location_id: string; name: string; channel_id: string | null; created_at: string }
+type Channel = { id: string; name: string; slug: string; description: string | null; mood: string | null; active: boolean; created_at: string }
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('signin')
@@ -18,6 +19,7 @@ export default function App() {
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [locations, setLocations] = useState<Location[]>([])
   const [zones, setZones] = useState<Zone[]>([])
+  const [channels, setChannels] = useState<Channel[]>([])
   const [dataLoading, setDataLoading] = useState(false)
   const [dataMsg, setDataMsg] = useState('')
 
@@ -46,6 +48,7 @@ export default function App() {
       setOrganization(null)
       setLocations([])
       setZones([])
+      setChannels([])
       return
     }
     void loadHotelData()
@@ -55,17 +58,18 @@ export default function App() {
     setDataLoading(true)
     setDataMsg('')
 
-    const { data: orgs, error: orgError } = await supabase
-      .from('organizations')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(1)
+    const [{ data: orgs, error: orgError }, { data: channelData, error: channelError }] = await Promise.all([
+      supabase.from('organizations').select('*').order('created_at', { ascending: true }).limit(1),
+      supabase.from('channels').select('*').eq('active', true).order('created_at', { ascending: true }),
+    ])
 
-    if (orgError) {
-      setDataMsg(orgError.message)
+    if (orgError || channelError) {
+      setDataMsg(orgError?.message ?? channelError?.message ?? 'Could not load data.')
       setDataLoading(false)
       return
     }
+
+    setChannels((channelData ?? []) as Channel[])
 
     const org = (orgs?.[0] ?? null) as Organization | null
     setOrganization(org)
@@ -212,6 +216,34 @@ export default function App() {
     setDataLoading(false)
   }
 
+  async function assignChannel(zoneId: string, channelId: string) {
+    setDataLoading(true)
+    setDataMsg('')
+
+    const nextChannelId = channelId || null
+    const { data, error } = await supabase
+      .from('zones')
+      .update({ channel_id: nextChannelId })
+      .eq('id', zoneId)
+      .select()
+      .single()
+
+    if (error) {
+      setDataMsg(error.message)
+      setDataLoading(false)
+      return
+    }
+
+    setZones((current) => current.map((zone) => zone.id === zoneId ? data as Zone : zone))
+    setDataLoading(false)
+  }
+
+  const channelsById = useMemo(() => {
+    const map: Record<string, Channel> = {}
+    for (const channel of channels) map[channel.id] = channel
+    return map
+  }, [channels])
+
   const zonesByLocation = useMemo(() => {
     const map: Record<string, Zone[]> = {}
     for (const zone of zones) {
@@ -241,6 +273,7 @@ export default function App() {
           <article><strong>{organization ? 1 : 0}</strong><span>Organization</span></article>
           <article><strong>{locations.length}</strong><span>Locations</span></article>
           <article><strong>{zones.length}</strong><span>Zones</span></article>
+          <article><strong>{channels.length}</strong><span>Music channels</span></article>
         </section>
 
         {dataMsg && <div className="data-message">{dataMsg}</div>}
@@ -321,14 +354,62 @@ export default function App() {
                       </div>
                       <span>{(zonesByLocation[location.id] ?? []).length} zones</span>
                     </div>
-                    <div className="zone-pills">
-                      {(zonesByLocation[location.id] ?? []).length === 0
-                        ? <em>No zones yet</em>
-                        : (zonesByLocation[location.id] ?? []).map((zone) => <span key={zone.id}>{zone.name}</span>)}
+
+                    <div className="zone-list">
+                      {(zonesByLocation[location.id] ?? []).length === 0 ? (
+                        <em>No zones yet</em>
+                      ) : (
+                        (zonesByLocation[location.id] ?? []).map((zone) => {
+                          const assigned = zone.channel_id ? channelsById[zone.channel_id] : null
+                          return (
+                            <div className="zone-row" key={zone.id}>
+                              <div className="zone-name">
+                                <strong>{zone.name}</strong>
+                                <span>{assigned ? assigned.name : 'No music assigned'}</span>
+                              </div>
+                              <select
+                                className="channel-select"
+                                value={zone.channel_id ?? ''}
+                                onChange={(e) => void assignChannel(zone.id, e.target.value)}
+                                disabled={dataLoading}
+                              >
+                                <option value="">Select channel</option>
+                                {channels.map((channel) => (
+                                  <option key={channel.id} value={channel.id}>{channel.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </article>
                 ))
               )}
+            </section>
+
+            <section className="music-library">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">LELVINE Music</div>
+                  <h2>Music Library</h2>
+                </div>
+                <p>Curated sound environments for hospitality spaces.</p>
+              </div>
+
+              <div className="channel-grid">
+                {channels.map((channel, index) => (
+                  <article className="channel-card" key={channel.id}>
+                    <div className="channel-number">{String(index + 1).padStart(2, '0')}</div>
+                    <div>
+                      <h3>{channel.name}</h3>
+                      <p className="channel-mood">{channel.mood}</p>
+                      <p className="channel-description">{channel.description}</p>
+                    </div>
+                    <div className="channel-status">Available</div>
+                  </article>
+                ))}
+              </div>
             </section>
           </>
         )}
