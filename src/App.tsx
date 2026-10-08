@@ -74,7 +74,7 @@ const dayOptions = [
   { value: 7, label: 'Sun' },
 ]
 
-export default function App() {
+function DashboardApp() {
   const [mode, setMode] = useState<Mode>('signin')
   const [session, setSession] = useState<Session | null>(null)
   const [email, setEmail] = useState('')
@@ -985,4 +985,297 @@ export default function App() {
       </section>
     </main>
   )
+}
+
+
+type PlayerBootstrap = {
+  device: { id: string; code: string; name: string; volume: number }
+  location: { id: string; name: string; timezone: string }
+  zone: { id: string; name: string }
+  channel: { id: string; name: string; slug: string; mood: string | null } | null
+  server_time: string
+}
+
+type RuntimeCommand = {
+  command_id: string
+  command_type: string
+  payload: Record<string, unknown>
+  created_at: string
+}
+
+function PlayerRuntime() {
+  const [activationCode, setActivationCode] = useState('')
+  const [deviceId, setDeviceId] = useState(() => localStorage.getItem('lelvine_player_device_id') || '')
+  const [deviceToken, setDeviceToken] = useState(() => localStorage.getItem('lelvine_player_token') || '')
+  const [config, setConfig] = useState<PlayerBootstrap | null>(null)
+  const [runtimeState, setRuntimeState] = useState('stopped')
+  const [volume, setVolume] = useState(70)
+  const [runtimeMsg, setRuntimeMsg] = useState('')
+  const [pairing, setPairing] = useState(false)
+  const [lastHeartbeat, setLastHeartbeat] = useState<string | null>(null)
+
+  const paired = Boolean(deviceId && deviceToken)
+
+  async function bootstrap(id = deviceId, token = deviceToken) {
+    if (!id || !token) return
+
+    const { data, error } = await supabase.rpc('player_bootstrap', {
+      p_device_id: id,
+      p_token: token,
+    })
+
+    if (error) {
+      setRuntimeMsg(error.message)
+      if (error.message.toLowerCase().includes('invalid device token')) {
+        localStorage.removeItem('lelvine_player_device_id')
+        localStorage.removeItem('lelvine_player_token')
+        setDeviceId('')
+        setDeviceToken('')
+        setConfig(null)
+      }
+      return
+    }
+
+    const next = data as PlayerBootstrap
+    setConfig(next)
+    setVolume(next.device.volume ?? 70)
+    setRuntimeMsg('')
+  }
+
+  async function pairDevice(e: FormEvent) {
+    e.preventDefault()
+    if (!activationCode.trim()) return
+
+    setPairing(true)
+    setRuntimeMsg('')
+
+    const { data, error } = await supabase.rpc('pair_player_device', {
+      p_activation_code: activationCode.trim(),
+      p_platform: 'web-player',
+      p_app_version: '1.0.0',
+    })
+
+    if (error) {
+      setRuntimeMsg(error.message)
+      setPairing(false)
+      return
+    }
+
+    const result = data as { device_id: string; device_token: string }
+    localStorage.setItem('lelvine_player_device_id', result.device_id)
+    localStorage.setItem('lelvine_player_token', result.device_token)
+    setDeviceId(result.device_id)
+    setDeviceToken(result.device_token)
+    setActivationCode('')
+    setPairing(false)
+    await bootstrap(result.device_id, result.device_token)
+  }
+
+  async function heartbeat() {
+    if (!deviceId || !deviceToken) return
+
+    const { data, error } = await supabase.rpc('player_heartbeat', {
+      p_device_id: deviceId,
+      p_token: deviceToken,
+      p_playback_state: runtimeState,
+      p_current_channel_id: config?.channel?.id ?? null,
+      p_current_track_id: null,
+      p_volume: volume,
+      p_app_version: '1.0.0',
+      p_last_error: null,
+    })
+
+    if (error) {
+      setRuntimeMsg(error.message)
+      return
+    }
+
+    const result = data as { desired_channel_id?: string | null }
+    if (result.desired_channel_id && result.desired_channel_id !== config?.channel?.id) {
+      await bootstrap()
+    }
+    setLastHeartbeat(new Date().toISOString())
+  }
+
+  async function acknowledge(command: RuntimeCommand, success = true, errorMessage: string | null = null) {
+    await supabase.rpc('player_ack_command', {
+      p_device_id: deviceId,
+      p_token: deviceToken,
+      p_command_id: command.command_id,
+      p_success: success,
+      p_error_message: errorMessage,
+    })
+  }
+
+  async function processCommand(command: RuntimeCommand) {
+    try {
+      if (command.command_type === 'play' || command.command_type === 'resume') setRuntimeState('playing')
+      if (command.command_type === 'pause') setRuntimeState('paused')
+      if (command.command_type === 'stop') setRuntimeState('stopped')
+
+      if (command.command_type === 'set_volume') {
+        const nextVolume = Number(command.payload?.volume)
+        if (Number.isFinite(nextVolume)) setVolume(nextVolume)
+      }
+
+      if (command.command_type === 'sync' || command.command_type === 'set_channel') {
+        await bootstrap()
+      }
+
+      await acknowledge(command, true)
+
+      if (command.command_type === 'restart' || command.command_type === 'reload') {
+        window.setTimeout(() => window.location.reload(), 500)
+      }
+    } catch (error) {
+      await acknowledge(command, false, error instanceof Error ? error.message : 'Command failed')
+    }
+  }
+
+  async function pullCommands() {
+    if (!deviceId || !deviceToken) return
+
+    const { data, error } = await supabase.rpc('player_pull_commands', {
+      p_device_id: deviceId,
+      p_token: deviceToken,
+    })
+
+    if (error) {
+      setRuntimeMsg(error.message)
+      return
+    }
+
+    for (const command of (data ?? []) as RuntimeCommand[]) {
+      await processCommand(command)
+    }
+  }
+
+  function unpairLocal() {
+    localStorage.removeItem('lelvine_player_device_id')
+    localStorage.removeItem('lelvine_player_token')
+    setDeviceId('')
+    setDeviceToken('')
+    setConfig(null)
+    setRuntimeState('stopped')
+    setLastHeartbeat(null)
+  }
+
+  useEffect(() => {
+    if (!paired) return
+    void bootstrap()
+  }, [deviceId, deviceToken])
+
+  useEffect(() => {
+    if (!paired) return
+
+    void heartbeat()
+    void pullCommands()
+
+    const heartbeatTimer = window.setInterval(() => void heartbeat(), 30000)
+    const commandTimer = window.setInterval(() => void pullCommands(), 4000)
+
+    return () => {
+      window.clearInterval(heartbeatTimer)
+      window.clearInterval(commandTimer)
+    }
+  }, [paired, deviceId, deviceToken, runtimeState, volume, config?.channel?.id])
+
+  return (
+    <main className="runtime-shell">
+      <header className="runtime-header">
+        <div className="brand">LELVINE<span>PLAYER</span></div>
+        {paired && <div className="runtime-online"><i></i> Connected</div>}
+      </header>
+
+      {!paired ? (
+        <section className="pair-screen">
+          <div className="eyebrow">LELVINE Player</div>
+          <h1>Pair this player.</h1>
+          <p>Enter the pairing code shown in the hotel dashboard.</p>
+
+          <form onSubmit={pairDevice} className="pair-form">
+            <label>Pairing code</label>
+            <input
+              className="pair-code-input"
+              value={activationCode}
+              onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
+              placeholder="A7F83D21"
+              autoFocus
+              required
+            />
+            <button className="primary" disabled={pairing}>
+              {pairing ? 'Pairing…' : 'Connect player'}
+            </button>
+          </form>
+
+          {runtimeMsg && <div className="data-message">{runtimeMsg}</div>}
+        </section>
+      ) : (
+        <section className="runtime-console">
+          <div className="runtime-topline">
+            <div>
+              <div className="eyebrow">Live player</div>
+              <h1>{config?.device.name ?? 'LELVINE Player'}</h1>
+              <p>{config ? config.location.name + ' · ' + config.zone.name : 'Connecting…'}</p>
+            </div>
+            <div className="runtime-code">{config?.device.code ?? '—'}</div>
+          </div>
+
+          <div className="runtime-now">
+            <div className="runtime-art">
+              <span>LELVINE</span>
+            </div>
+            <div className="runtime-track">
+              <div className="eyebrow">Current sound environment</div>
+              <h2>{config?.channel?.name ?? 'No channel assigned'}</h2>
+              <p>{config?.channel?.mood ?? 'Waiting for a channel from the dashboard.'}</p>
+              <div className="runtime-state">
+                <span className={'state-pill ' + runtimeState}>{runtimeState}</span>
+                <span>Volume {volume}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="runtime-controls">
+            <button onClick={() => setRuntimeState(runtimeState === 'playing' ? 'paused' : 'playing')}>
+              {runtimeState === 'playing' ? 'Pause' : 'Play'}
+            </button>
+            <button onClick={() => setRuntimeState('stopped')}>Stop</button>
+            <button onClick={() => void bootstrap()}>Sync</button>
+          </div>
+
+          <div className="runtime-volume">
+            <span>Volume</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+            />
+            <strong>{volume}%</strong>
+          </div>
+
+          <div className="runtime-info">
+            <div><span>Player status</span><strong>ONLINE</strong></div>
+            <div><span>Heartbeat</span><strong>{lastHeartbeat ? new Date(lastHeartbeat).toLocaleTimeString() : 'Connecting…'}</strong></div>
+            <div><span>Timezone</span><strong>{config?.location.timezone ?? '—'}</strong></div>
+            <div><span>Audio</span><strong>Awaiting catalog files</strong></div>
+          </div>
+
+          {runtimeMsg && <div className="data-message">{runtimeMsg}</div>}
+
+          <button className="runtime-unpair" onClick={unpairLocal}>Forget this player</button>
+        </section>
+      )}
+    </main>
+  )
+}
+
+export default function App() {
+  const isPlayerHost =
+    window.location.hostname === 'player.lelvine.com' ||
+    window.location.pathname.startsWith('/player')
+
+  return isPlayerHost ? <PlayerRuntime /> : <DashboardApp />
 }
