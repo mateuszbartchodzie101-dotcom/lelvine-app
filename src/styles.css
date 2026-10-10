@@ -250,3 +250,17 @@ select{appearance:auto}
   .feature-lock{grid-template-columns:1fr}
   .feature-lock-copy{border-left:0;border-top:1px solid #302a25;padding-left:0;padding-top:20px}
 }
+
+
+/* PREMIUM SERVICES */
+.premium-services{margin:40px 0}
+.concierge-panel{border:1px solid #3b3129;background:linear-gradient(145deg,#16110d,#0d0d0d);padding:28px;display:flex;justify-content:space-between;gap:24px;align-items:center}
+.concierge-panel h3{font-family:'Playfair Display',serif;font-size:34px;font-weight:400;margin:10px 0 8px}
+.concierge-panel p{margin:0;color:#938a82;max-width:680px}
+.concierge-panel.active{border-color:#7d654f}
+.concierge-action{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 18px;border:1px solid #7d654f;color:#e4d4c3;text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-size:9px;white-space:nowrap}
+.concierge-action:hover{background:#17110d}
+
+@media(max-width:900px){
+  .concierge-panel{flex-direction:column;align-items:flex-start}
+}
