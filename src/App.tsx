@@ -1759,22 +1759,31 @@ function PlayerRuntime() {
   async function prepareTrack(index: number, autoplay = runtimeState === 'playing') {
     if (playlist.length === 0) return
 
-    const normalizedIndex = ((index % playlist.length) + playlist.length) % playlist.length
-    const track = playlist[normalizedIndex]
-    const url = await resolveTrackAudio(track)
+    let resolvedTrack: Track | null = null
+    let resolvedUrl = ''
+    let resolvedIndex = 0
 
-    if (!url) {
-      if (playlist.length > 1) {
-        await prepareTrack(normalizedIndex + 1, autoplay)
-      } else {
-        setRuntimeMsg('This channel has no playable audio file yet.')
+    for (let offset = 0; offset < playlist.length; offset += 1) {
+      const candidateIndex = ((index + offset) % playlist.length + playlist.length) % playlist.length
+      const candidate = playlist[candidateIndex]
+      const candidateUrl = await resolveTrackAudio(candidate)
+
+      if (candidateUrl) {
+        resolvedTrack = candidate
+        resolvedUrl = candidateUrl
+        resolvedIndex = candidateIndex
+        break
       }
+    }
+
+    if (!resolvedTrack || !resolvedUrl) {
+      setRuntimeMsg('This channel has no playable audio file yet.')
       return
     }
 
-    setTrackIndex(normalizedIndex)
-    setCurrentTrack(track)
-    setCurrentAudioUrl(url)
+    setTrackIndex(resolvedIndex)
+    setCurrentTrack(resolvedTrack)
+    setCurrentAudioUrl(resolvedUrl)
     setAudioReady(false)
 
     window.setTimeout(async () => {
