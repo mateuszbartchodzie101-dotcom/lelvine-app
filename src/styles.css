@@ -230,3 +230,8 @@ select{appearance:auto}
   .billing-head{flex-direction:column}
   .plan-grid{grid-template-columns:1fr}
 }
+
+.billing-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.billing-manage{border:1px solid #3a342f;background:#0d0d0d;color:#d8cec4;padding:10px 13px;text-transform:uppercase;letter-spacing:.1em;font-size:9px;cursor:pointer}
+.billing-manage:hover{border-color:#8b6a49}
+.billing-manage:disabled{opacity:.55;cursor:not-allowed}
