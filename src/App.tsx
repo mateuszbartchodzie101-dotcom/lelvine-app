@@ -175,6 +175,11 @@ function DashboardApp() {
   const [adminMusicLoading, setAdminMusicLoading] = useState(false)
   const [adminMusicMsg, setAdminMusicMsg] = useState('')
   const [adminUploadTrackId, setAdminUploadTrackId] = useState<string | null>(null)
+  const [adminCustomerSearch, setAdminCustomerSearch] = useState('')
+  const [adminPlanFilter, setAdminPlanFilter] = useState('all')
+  const [adminStatusFilter, setAdminStatusFilter] = useState('all')
+  const [adminPlayerFilter, setAdminPlayerFilter] = useState('all')
+  const [adminDeviceSearch, setAdminDeviceSearch] = useState('')
   const [adminMusicChannelFilter, setAdminMusicChannelFilter] = useState('all')
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelMood, setNewChannelMood] = useState('')
@@ -1135,6 +1140,41 @@ function DashboardApp() {
 
   if (authLoading && !session) return <main className="loading">LELVINE</main>
 
+  const filteredAdminCustomers = (adminSummary?.customers ?? []).filter((customer) => {
+    const search = adminCustomerSearch.trim().toLowerCase()
+    const matchesSearch = !search || customer.name.toLowerCase().includes(search)
+    const matchesPlan =
+      adminPlanFilter === 'all' ||
+      (adminPlanFilter === 'none' && !customer.subscription?.plan) ||
+      customer.subscription?.plan === adminPlanFilter
+    const matchesStatus =
+      adminStatusFilter === 'all' ||
+      (adminStatusFilter === 'none' && !customer.subscription?.status) ||
+      customer.subscription?.status === adminStatusFilter
+    const matchesPlayer =
+      adminPlayerFilter === 'all' ||
+      (adminPlayerFilter === 'online' && customer.online_devices > 0) ||
+      (adminPlayerFilter === 'offline' && customer.offline_devices > 0) ||
+      (adminPlayerFilter === 'unpaired' && customer.unpaired_devices > 0) ||
+      (adminPlayerFilter === 'none' && customer.devices === 0)
+
+    return matchesSearch && matchesPlan && matchesStatus && matchesPlayer
+  })
+
+  const filteredAdminDevices = (adminSummary?.devices ?? []).filter((device) => {
+    const search = adminDeviceSearch.trim().toLowerCase()
+    if (!search) return true
+
+    return [
+      device.device_name,
+      device.organization_name,
+      device.location_name,
+      device.zone_name,
+      device.current_channel_name ?? '',
+      device.device_status,
+    ].some((value) => value.toLowerCase().includes(search))
+  })
+
   const selectedAdminCustomer =
     adminSummary?.customers.find((customer) => customer.id === selectedAdminCustomerId) ?? null
   const selectedAdminDevices =
@@ -1406,6 +1446,52 @@ function DashboardApp() {
                 <p>{adminSummary.customers.length} total organizations</p>
               </div>
 
+              <div className="admin-customer-filters">
+                <input
+                  value={adminCustomerSearch}
+                  onChange={(e) => setAdminCustomerSearch(e.target.value)}
+                  placeholder="Search hotel / organization"
+                />
+                <select value={adminPlanFilter} onChange={(e) => setAdminPlanFilter(e.target.value)}>
+                  <option value="all">All plans</option>
+                  <option value="essence">Essence</option>
+                  <option value="signature">Signature</option>
+                  <option value="premium">Premium</option>
+                  <option value="none">No plan</option>
+                </select>
+                <select value={adminStatusFilter} onChange={(e) => setAdminStatusFilter(e.target.value)}>
+                  <option value="all">All statuses</option>
+                  <option value="trialing">Trialing</option>
+                  <option value="active">Active</option>
+                  <option value="past_due">Past due</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="canceled">Canceled</option>
+                  <option value="none">No subscription</option>
+                </select>
+                <select value={adminPlayerFilter} onChange={(e) => setAdminPlayerFilter(e.target.value)}>
+                  <option value="all">All player states</option>
+                  <option value="online">Has online player</option>
+                  <option value="offline">Has offline player</option>
+                  <option value="unpaired">Has unpaired player</option>
+                  <option value="none">No players</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminCustomerSearch('')
+                    setAdminPlanFilter('all')
+                    setAdminStatusFilter('all')
+                    setAdminPlayerFilter('all')
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="admin-filter-count">
+                Showing {filteredAdminCustomers.length} of {adminSummary.customers.length}
+              </div>
+
               <div className="admin-table-wrap">
                 <table className="admin-table">
                   <thead>
@@ -1420,7 +1506,7 @@ function DashboardApp() {
                     </tr>
                   </thead>
                   <tbody>
-                    {adminSummary.customers.map((customer) => (
+                    {filteredAdminCustomers.map((customer) => (
                       <tr
                         key={customer.id}
                         className="admin-customer-row"
@@ -1573,11 +1659,20 @@ function DashboardApp() {
                 <p>Live status from connected hotel players.</p>
               </div>
 
+              <div className="admin-player-search">
+                <input
+                  value={adminDeviceSearch}
+                  onChange={(e) => setAdminDeviceSearch(e.target.value)}
+                  placeholder="Search player, hotel, location, zone or channel"
+                />
+                <span>{filteredAdminDevices.length} of {adminSummary.devices.length} players</span>
+              </div>
+
               <div className="admin-device-grid">
-                {adminSummary.devices.length === 0 ? (
+                {filteredAdminDevices.length === 0 ? (
                   <div className="empty-state">No player devices have been created yet.</div>
                 ) : (
-                  adminSummary.devices.map((device) => (
+                  filteredAdminDevices.map((device) => (
                     <article className="admin-device-card" key={device.device_id}>
                       <div className="admin-device-top">
                         <div>
