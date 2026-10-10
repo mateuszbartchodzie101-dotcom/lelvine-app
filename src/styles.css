@@ -235,3 +235,18 @@ select{appearance:auto}
 .billing-manage{border:1px solid #3a342f;background:#0d0d0d;color:#d8cec4;padding:10px 13px;text-transform:uppercase;letter-spacing:.1em;font-size:9px;cursor:pointer}
 .billing-manage:hover{border-color:#8b6a49}
 .billing-manage:disabled{opacity:.55;cursor:not-allowed}
+
+
+/* FEATURE GATING */
+.feature-lock{border:1px solid #342d27;background:linear-gradient(145deg,#12100f,#0b0b0b);padding:28px;display:grid;grid-template-columns:1.3fr 1fr;gap:28px;align-items:center}
+.feature-lock h3{font-family:'Playfair Display',serif;font-size:34px;font-weight:400;margin:10px 0 8px}
+.feature-lock p{margin:0;color:#938a82;max-width:620px}
+.feature-lock-badge{display:inline-flex;border:1px solid #7d654f;color:#c3a98e;padding:7px 10px;font-size:9px;text-transform:uppercase;letter-spacing:.14em}
+.feature-lock-copy{border-left:1px solid #302a25;padding-left:24px;display:flex;flex-direction:column;gap:8px}
+.feature-lock-copy strong{font-size:13px;font-weight:500;color:#ddd2c6}
+.feature-lock-copy span{font-size:12px;line-height:1.6;color:#837b73}
+
+@media(max-width:900px){
+  .feature-lock{grid-template-columns:1fr}
+  .feature-lock-copy{border-left:0;border-top:1px solid #302a25;padding-left:0;padding-top:20px}
+}
