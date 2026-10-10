@@ -36,6 +36,20 @@ type ZoneOverview = {
   current_channel_name: string | null
   default_channel_name: string | null
 }
+type SubscriptionRecord = {
+  id: string
+  organization_id: string | null
+  user_id: string | null
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  stripe_price_id: string | null
+  plan: 'essence' | 'signature' | 'premium' | null
+  status: string
+  trial_end: string | null
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+}
+
 type PlayerDevice = {
   device_id: string
   device_code: string
@@ -92,6 +106,8 @@ function DashboardApp() {
   const [devices, setDevices] = useState<PlayerDevice[]>([])
   const [dataLoading, setDataLoading] = useState(false)
   const [dataMsg, setDataMsg] = useState('')
+  const [subscription, setSubscription] = useState<SubscriptionRecord | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
 
   const [orgName, setOrgName] = useState('')
   const [locationName, setLocationName] = useState('')
@@ -137,10 +153,30 @@ function DashboardApp() {
       setSchedules([])
       setZoneOverview([])
       setDevices([])
+      setSubscription(null)
       return
     }
     void loadHotelData()
   }, [session])
+
+  useEffect(() => {
+    if (!session || !organization) {
+      setSubscription(null)
+      return
+    }
+
+    void (async () => {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (!error) setSubscription((data ?? null) as SubscriptionRecord | null)
+    })()
+  }, [session, organization?.id])
 
   async function loadHotelData() {
     setDataLoading(true)
@@ -515,6 +551,42 @@ function DashboardApp() {
     setAudioUrl(data.signedUrl)
   }
 
+  async function startCheckout(plan: 'essence' | 'signature' | 'premium') {
+    if (!session || !organization) {
+      setDataMsg('Create your organization before starting a subscription.')
+      return
+    }
+
+    setCheckoutLoading(plan)
+    setDataMsg('')
+
+    try {
+      const response = await fetch(
+        'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/create-checkout-session',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan,
+            user_id: session.user.id,
+            organization_id: organization.id,
+          }),
+        }
+      )
+
+      const result = await response.json() as { url?: string; error?: string; details?: string }
+
+      if (!response.ok || !result.url) {
+        throw new Error(result.details || result.error || 'Could not start checkout.')
+      }
+
+      window.location.href = result.url
+    } catch (error) {
+      setDataMsg(error instanceof Error ? error.message : 'Could not start checkout.')
+      setCheckoutLoading(null)
+    }
+  }
+
   const channelsById = useMemo(() => {
     const map: Record<string, Channel> = {}
     for (const channel of channels) map[channel.id] = channel
@@ -576,6 +648,68 @@ function DashboardApp() {
           <article><strong>{zones.length}</strong><span>Zones</span></article>
           <article><strong>{tracks.length}</strong><span>Tracks</span></article>
         </section>
+
+        {organization && (
+          <section className="billing-panel">
+            <div className="billing-head">
+              <div>
+                <div className="eyebrow">Subscription</div>
+                <h2>{subscription ? 'Your LELVINE plan' : 'Choose your plan'}</h2>
+                <p>
+                  {subscription
+                    ? `${subscription.plan ?? 'LELVINE'} · ${subscription.status}${subscription.trial_end ? ' · trial until ' + new Date(subscription.trial_end).toLocaleDateString() : ''}`
+                    : 'Start with a 7-day free trial. Cancel anytime.'}
+                </p>
+              </div>
+              {subscription && (
+                <div className={'subscription-badge ' + subscription.status}>
+                  {subscription.status}
+                </div>
+              )}
+            </div>
+
+            <div className="plan-grid">
+              <article className={subscription?.plan === 'essence' ? 'plan-card current' : 'plan-card'}>
+                <span>Essence</span>
+                <strong>€49<small>/month</small></strong>
+                <p>1 zone · LELVINE channels · scheduling</p>
+                <button
+                  className="primary"
+                  onClick={() => void startCheckout('essence')}
+                  disabled={checkoutLoading !== null}
+                >
+                  {checkoutLoading === 'essence' ? 'Opening…' : subscription?.plan === 'essence' ? 'Current plan' : 'Start 7-day trial'}
+                </button>
+              </article>
+
+              <article className={subscription?.plan === 'signature' ? 'plan-card current featured' : 'plan-card featured'}>
+                <span>Signature</span>
+                <strong>€99<small>/month</small></strong>
+                <p>Up to 3 zones · advanced scheduling · regular refreshes</p>
+                <button
+                  className="primary"
+                  onClick={() => void startCheckout('signature')}
+                  disabled={checkoutLoading !== null}
+                >
+                  {checkoutLoading === 'signature' ? 'Opening…' : subscription?.plan === 'signature' ? 'Current plan' : 'Start 7-day trial'}
+                </button>
+              </article>
+
+              <article className={subscription?.plan === 'premium' ? 'plan-card current' : 'plan-card'}>
+                <span>Premium</span>
+                <strong>€199<small>/month</small></strong>
+                <p>Multiple zones · seasonal updates · Sound Concierge</p>
+                <button
+                  className="primary"
+                  onClick={() => void startCheckout('premium')}
+                  disabled={checkoutLoading !== null}
+                >
+                  {checkoutLoading === 'premium' ? 'Opening…' : subscription?.plan === 'premium' ? 'Current plan' : 'Start 7-day trial'}
+                </button>
+              </article>
+            </div>
+          </section>
+        )}
 
         {dataMsg && <div className="data-message">{dataMsg}</div>}
 
