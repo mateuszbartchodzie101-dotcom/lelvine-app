@@ -305,3 +305,34 @@ select{appearance:auto}
   .plan-metrics{grid-template-columns:1fr 1fr}
   .plan-features{grid-template-columns:1fr}
 }
+
+
+/* ONBOARDING */
+.onboarding-card{margin:28px 0 36px;border:1px solid #302b27;background:linear-gradient(145deg,#12100f,#0b0b0b);padding:26px}
+.onboarding-card.complete{border-color:#516148}
+.onboarding-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
+.onboarding-head h2{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;margin:8px 0}
+.onboarding-head p{margin:0;color:#918981;max-width:680px}
+.onboarding-progress-number{font-family:'Playfair Display',serif;font-size:34px;color:#c8b29b}
+.onboarding-progress-track{height:4px;background:#23201d;margin:22px 0 18px;overflow:hidden}
+.onboarding-progress-track span{display:block;height:100%;background:#8b6a49;transition:width .25s ease}
+.onboarding-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.onboarding-step{border:1px solid #2c2825;background:#0d0d0d;color:#d7cec5;padding:14px;text-align:left;display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+.onboarding-step.ready{cursor:default}
+.onboarding-step.current{border-color:#8b6a49;background:#15110e}
+.onboarding-step.done{border-color:#4e5d47}
+.onboarding-step-number{width:26px;height:26px;border:1px solid #433a33;display:grid;place-items:center;flex:0 0 auto;font-size:10px;color:#b8a896}
+.onboarding-step.done .onboarding-step-number{border-color:#65745c;color:#a9b99c}
+.onboarding-step-copy{display:flex;flex-direction:column;gap:5px}
+.onboarding-step-copy strong{font-size:11px;font-weight:500}
+.onboarding-step-copy small{font-size:10px;line-height:1.45;color:#7f7770}
+.onboarding-next{margin-top:18px;border-top:1px solid #2c2825;padding-top:18px;display:flex;justify-content:space-between;gap:20px;align-items:center}
+.onboarding-next>div{display:flex;flex-direction:column;gap:5px}
+.onboarding-next span{font-size:9px;text-transform:uppercase;letter-spacing:.13em;color:#756d66}
+.onboarding-next strong{font-size:13px;font-weight:500}
+#onboarding-organization,#onboarding-billing,#onboarding-spaces,#onboarding-sound,#onboarding-player{scroll-margin-top:24px}
+
+@media(max-width:900px){
+  .onboarding-head,.onboarding-next{flex-direction:column;align-items:flex-start}
+  .onboarding-steps{grid-template-columns:1fr}
+}
