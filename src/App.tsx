@@ -174,6 +174,7 @@ function DashboardApp() {
   const [adminMusic, setAdminMusic] = useState<AdminMusicLibrary | null>(null)
   const [adminMusicLoading, setAdminMusicLoading] = useState(false)
   const [adminMusicMsg, setAdminMusicMsg] = useState('')
+  const [adminUploadTrackId, setAdminUploadTrackId] = useState<string | null>(null)
   const [adminMusicChannelFilter, setAdminMusicChannelFilter] = useState('all')
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelMood, setNewChannelMood] = useState('')
@@ -292,6 +293,42 @@ function DashboardApp() {
     } catch (error) {
       setAdminMusicMsg(error instanceof Error ? error.message : 'Could not add channel.')
       setAdminMusicLoading(false)
+    }
+  }
+
+  async function uploadAdminTrackAudio(trackId: string, file: File) {
+    if (!session) return
+
+    setAdminUploadTrackId(trackId)
+    setAdminMusicMsg('')
+
+    try {
+      const form = new FormData()
+      form.append('file', file)
+
+      const response = await fetch(
+        `https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/admin/music/upload/${encodeURIComponent(trackId)}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: form,
+        }
+      )
+
+      const result = await response.json() as { error?: string; file_name?: string }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not upload audio file.')
+      }
+
+      setAdminMusicMsg(`Uploaded ${result.file_name || 'audio file'}.`)
+      await loadAdminMusic()
+    } catch (error) {
+      setAdminMusicMsg(error instanceof Error ? error.message : 'Could not upload audio file.')
+    } finally {
+      setAdminUploadTrackId(null)
     }
   }
 
@@ -1306,6 +1343,25 @@ function DashboardApp() {
                             </div>
                             <div className="admin-track-actions">
                               <span>{playable ? 'Audio ready' : 'No audio yet'}</span>
+                              <label className="admin-upload-audio">
+                                <input
+                                  type="file"
+                                  accept=".mp3,.wav,.m4a,.aac,.ogg,.flac,audio/*"
+                                  disabled={adminUploadTrackId !== null}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    e.currentTarget.value = ''
+                                    if (file) void uploadAdminTrackAudio(track.id, file)
+                                  }}
+                                />
+                                <span>
+                                  {adminUploadTrackId === track.id
+                                    ? 'Uploading…'
+                                    : playable
+                                      ? 'Replace file'
+                                      : 'Upload audio'}
+                                </span>
+                              </label>
                               <button
                                 onClick={() => {
                                   const next = window.prompt(
