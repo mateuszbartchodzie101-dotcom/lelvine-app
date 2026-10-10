@@ -279,3 +279,29 @@ select{appearance:auto}
 @media(max-width:900px){
   .refresh-grid{grid-template-columns:1fr}
 }
+
+
+/* YOUR PLAN OVERVIEW */
+.plan-overview{border:1px solid #332d28;background:linear-gradient(145deg,#12100f,#0b0b0b);padding:24px;display:flex;flex-direction:column;gap:22px}
+.plan-overview-main{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.plan-kicker{text-transform:uppercase;letter-spacing:.14em;font-size:9px;color:#897f76}
+.plan-name{font-family:'Playfair Display',serif;font-size:36px;font-weight:400;text-transform:capitalize}
+.plan-price{color:#b8a895;font-size:13px}
+.plan-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.plan-metrics>div{border:1px solid #2c2825;background:#0d0d0d;padding:16px;display:flex;flex-direction:column;gap:7px}
+.plan-metrics span{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#776f68}
+.plan-metrics strong{font-size:13px;font-weight:400;color:#ddd3c9}
+.plan-features{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.plan-feature{border:1px solid #2d2925;background:#0d0d0d;padding:13px 14px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+.plan-feature span{font-size:12px;color:#bcb1a6}
+.plan-feature strong{font-size:9px;text-transform:uppercase;letter-spacing:.1em;font-weight:500}
+.plan-feature.on{border-color:#4f5f49}
+.plan-feature.on strong{color:#a9b99c}
+.plan-feature.off{opacity:.66}
+.plan-feature.off strong{color:#7e756d}
+.plan-cancel-note{border:1px solid #70573f;background:#17120e;padding:12px 14px;color:#c9ad8e;font-size:11px}
+
+@media(max-width:900px){
+  .plan-metrics{grid-template-columns:1fr 1fr}
+  .plan-features{grid-template-columns:1fr}
+}
