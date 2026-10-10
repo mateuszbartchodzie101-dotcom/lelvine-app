@@ -366,6 +366,11 @@ function DashboardApp() {
     (subscription?.plan === 'signature' || subscription?.plan === 'premium')
   const premiumFeaturesEnabled =
     subscriptionUsable && subscription?.plan === 'premium'
+  const regularRefreshesEnabled =
+    subscriptionUsable &&
+    (subscription?.plan === 'signature' || subscription?.plan === 'premium')
+  const seasonalUpdatesEnabled =
+    subscriptionUsable && subscription?.plan === 'premium'
 
   async function createZone(e: FormEvent) {
     e.preventDefault()
@@ -1112,6 +1117,32 @@ function DashboardApp() {
                   </article>
                 </div>
               )}
+            </section>
+
+            <section className="refresh-services">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Music Updates</div>
+                  <h2>Refreshes & Seasonal Updates</h2>
+                </div>
+                <p>Keep the sound of your property fresh without rebuilding your setup.</p>
+              </div>
+
+              <div className="refresh-grid">
+                <article className={regularRefreshesEnabled ? 'refresh-card active' : 'refresh-card locked'}>
+                  <span className="feature-lock-badge">Signature & Premium</span>
+                  <h3>Regular music refreshes</h3>
+                  <p>Periodic updates to your active channels so the atmosphere keeps evolving over time.</p>
+                  <strong>{regularRefreshesEnabled ? 'Included in your plan' : 'Upgrade to unlock'}</strong>
+                </article>
+
+                <article className={seasonalUpdatesEnabled ? 'refresh-card active' : 'refresh-card locked'}>
+                  <span className="feature-lock-badge">Premium only</span>
+                  <h3>Seasonal updates</h3>
+                  <p>Tailored seasonal adjustments for periods such as summer, festive season and special hotel moments.</p>
+                  <strong>{seasonalUpdatesEnabled ? 'Included in your plan' : 'Available on Premium'}</strong>
+                </article>
+              </div>
             </section>
 
             <section className="premium-services">
