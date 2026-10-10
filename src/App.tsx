@@ -551,6 +551,43 @@ function DashboardApp() {
     setAudioUrl(data.signedUrl)
   }
 
+  async function openCustomerPortal() {
+    if (!session || !organization) {
+      setDataMsg('No organization found.')
+      return
+    }
+
+    setCheckoutLoading('portal')
+    setDataMsg('')
+
+    try {
+      const response = await fetch(
+        'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/create-portal-session',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            organization_id: organization.id,
+          }),
+        }
+      )
+
+      const result = await response.json() as { url?: string; error?: string }
+
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || 'Could not open subscription settings.')
+      }
+
+      window.location.href = result.url
+    } catch (error) {
+      setDataMsg(error instanceof Error ? error.message : 'Could not open subscription settings.')
+      setCheckoutLoading(null)
+    }
+  }
+
   async function startCheckout(plan: 'essence' | 'signature' | 'premium') {
     if (!session || !organization) {
       setDataMsg('Create your organization before starting a subscription.')
@@ -664,8 +701,17 @@ function DashboardApp() {
                 </p>
               </div>
               {subscription && (
-                <div className={'subscription-badge ' + subscription.status}>
-                  {subscription.status}
+                <div className="billing-actions">
+                  <div className={'subscription-badge ' + subscription.status}>
+                    {subscription.status}
+                  </div>
+                  <button
+                    className="billing-manage"
+                    onClick={() => void openCustomerPortal()}
+                    disabled={checkoutLoading !== null}
+                  >
+                    {checkoutLoading === 'portal' ? 'Opening…' : 'Manage subscription'}
+                  </button>
                 </div>
               )}
             </div>
