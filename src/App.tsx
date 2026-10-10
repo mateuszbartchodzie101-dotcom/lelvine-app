@@ -361,6 +361,9 @@ function DashboardApp() {
           ? Infinity
           : 0
   const zoneLimitReached = Number.isFinite(zoneLimit) && zones.length >= zoneLimit
+  const advancedSchedulingEnabled =
+    subscriptionUsable &&
+    (subscription?.plan === 'signature' || subscription?.plan === 'premium')
 
   async function createZone(e: FormEvent) {
     e.preventDefault()
@@ -424,6 +427,11 @@ function DashboardApp() {
   async function createSchedule(e: FormEvent) {
     e.preventDefault()
     if (!scheduleZoneId || !scheduleChannelId || scheduleDays.length === 0) return
+
+    if (!advancedSchedulingEnabled) {
+      setDataMsg('Advanced scheduling is available on Signature and Premium.')
+      return
+    }
 
     setDataLoading(true)
     setDataMsg('')
@@ -1009,79 +1017,99 @@ function DashboardApp() {
                 <p>Choose which sound environment should run in each zone at different times of day.</p>
               </div>
 
-              <div className="schedule-layout">
-                <article className="panel">
-                  <form onSubmit={createSchedule} className="setup-form">
-                    <label>Zone</label>
-                    <select value={scheduleZoneId} onChange={(e) => setScheduleZoneId(e.target.value)} required>
-                      <option value="">Select zone</option>
-                      {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name}</option>)}
-                    </select>
+              {!advancedSchedulingEnabled ? (
+                <div className="feature-lock">
+                  <div>
+                    <span className="feature-lock-badge">Signature & Premium</span>
+                    <h3>Advanced scheduling</h3>
+                    <p>
+                      Automatically change the sound of each zone by time of day and day of week.
+                    </p>
+                  </div>
+                  <div className="feature-lock-copy">
+                    <strong>Available on Signature and Premium.</strong>
+                    <span>
+                      {subscription?.plan === 'essence'
+                        ? 'Your Essence plan includes one zone and core music controls.'
+                        : 'Start a Signature or Premium trial to unlock dayparting.'}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="schedule-layout">
+                  <article className="panel">
+                    <form onSubmit={createSchedule} className="setup-form">
+                      <label>Zone</label>
+                      <select value={scheduleZoneId} onChange={(e) => setScheduleZoneId(e.target.value)} required>
+                        <option value="">Select zone</option>
+                        {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name}</option>)}
+                      </select>
 
-                    <label>Music channel</label>
-                    <select value={scheduleChannelId} onChange={(e) => setScheduleChannelId(e.target.value)} required>
-                      <option value="">Select channel</option>
-                      {channels.map((channel) => <option key={channel.id} value={channel.id}>{channel.name}</option>)}
-                    </select>
+                      <label>Music channel</label>
+                      <select value={scheduleChannelId} onChange={(e) => setScheduleChannelId(e.target.value)} required>
+                        <option value="">Select channel</option>
+                        {channels.map((channel) => <option key={channel.id} value={channel.id}>{channel.name}</option>)}
+                      </select>
 
-                    <label>Schedule name</label>
-                    <input value={scheduleName} onChange={(e) => setScheduleName(e.target.value)} placeholder="Morning lobby" />
+                      <label>Schedule name</label>
+                      <input value={scheduleName} onChange={(e) => setScheduleName(e.target.value)} placeholder="Morning lobby" />
 
-                    <div className="two-col">
-                      <div>
-                        <label>Start</label>
-                        <input type="time" value={scheduleStart} onChange={(e) => setScheduleStart(e.target.value)} required />
-                      </div>
-                      <div>
-                        <label>End</label>
-                        <input type="time" value={scheduleEnd} onChange={(e) => setScheduleEnd(e.target.value)} required />
-                      </div>
-                    </div>
-
-                    <label>Days</label>
-                    <div className="day-selector">
-                      {dayOptions.map((day) => (
-                        <button
-                          type="button"
-                          key={day.value}
-                          className={scheduleDays.includes(day.value) ? 'day active' : 'day'}
-                          onClick={() => toggleDay(day.value)}
-                        >
-                          {day.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <button className="primary" disabled={dataLoading || zones.length === 0}>
-                      {dataLoading ? 'Saving…' : 'Add schedule'}
-                    </button>
-                  </form>
-                </article>
-
-                <article className="schedule-list">
-                  {schedules.length === 0 ? (
-                    <div className="empty-state">No schedules yet. Your zone will use its default channel.</div>
-                  ) : (
-                    schedules.map((schedule) => (
-                      <div className="schedule-row" key={schedule.id}>
+                      <div className="two-col">
                         <div>
-                          <strong>{schedule.name || channelsById[schedule.channel_id]?.name || 'Schedule'}</strong>
-                          <span>
-                            {zonesById[schedule.zone_id]?.name ?? 'Zone'} · {channelsById[schedule.channel_id]?.name ?? 'Channel'}
-                          </span>
+                          <label>Start</label>
+                          <input type="time" value={scheduleStart} onChange={(e) => setScheduleStart(e.target.value)} required />
                         </div>
-                        <div className="schedule-time">
-                          {schedule.start_time.slice(0,5)}–{schedule.end_time.slice(0,5)}
+                        <div>
+                          <label>End</label>
+                          <input type="time" value={scheduleEnd} onChange={(e) => setScheduleEnd(e.target.value)} required />
                         </div>
-                        <div className="schedule-days">
-                          {schedule.days_of_week.map((day) => dayOptions.find((item) => item.value === day)?.label).filter(Boolean).join(' ')}
-                        </div>
-                        <button className="danger-link" onClick={() => void deleteSchedule(schedule.id)} disabled={dataLoading}>Remove</button>
                       </div>
-                    ))
-                  )}
-                </article>
-              </div>
+
+                      <label>Days</label>
+                      <div className="day-selector">
+                        {dayOptions.map((day) => (
+                          <button
+                            type="button"
+                            key={day.value}
+                            className={scheduleDays.includes(day.value) ? 'day active' : 'day'}
+                            onClick={() => toggleDay(day.value)}
+                          >
+                            {day.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button className="primary" disabled={dataLoading || zones.length === 0}>
+                        {dataLoading ? 'Saving…' : 'Add schedule'}
+                      </button>
+                    </form>
+                  </article>
+
+                  <article className="schedule-list">
+                    {schedules.length === 0 ? (
+                      <div className="empty-state">No schedules yet. Your zone will use its default channel.</div>
+                    ) : (
+                      schedules.map((schedule) => (
+                        <div className="schedule-row" key={schedule.id}>
+                          <div>
+                            <strong>{schedule.name || channelsById[schedule.channel_id]?.name || 'Schedule'}</strong>
+                            <span>
+                              {zonesById[schedule.zone_id]?.name ?? 'Zone'} · {channelsById[schedule.channel_id]?.name ?? 'Channel'}
+                            </span>
+                          </div>
+                          <div className="schedule-time">
+                            {schedule.start_time.slice(0,5)}–{schedule.end_time.slice(0,5)}
+                          </div>
+                          <div className="schedule-days">
+                            {schedule.days_of_week.map((day) => dayOptions.find((item) => item.value === day)?.label).filter(Boolean).join(' ')}
+                          </div>
+                          <button className="danger-link" onClick={() => void deleteSchedule(schedule.id)} disabled={dataLoading}>Remove</button>
+                        </div>
+                      ))
+                    )}
+                  </article>
+                </div>
+              )}
             </section>
 
             <section className="music-library">
