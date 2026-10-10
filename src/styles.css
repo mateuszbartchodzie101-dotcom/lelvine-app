@@ -614,3 +614,45 @@ select{appearance:auto}
   .admin-customer-filters,.admin-player-search{flex-direction:column;align-items:stretch}
   .admin-customer-filters input,.admin-customer-filters select,.admin-player-search input{min-width:0;max-width:none;width:100%}
 }
+
+
+/* ADMIN ACTIVITY LOG */
+.admin-activity-actions,.admin-activity-search{
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap
+}
+.admin-activity-actions select,.admin-activity-search input{
+  border:1px solid #332e2a;background:#0b0b0b;color:#d8d0c8;padding:10px 11px;font:inherit
+}
+.admin-activity-actions button{
+  border:1px solid #40372f;background:transparent;color:#b6a493;padding:10px 12px;
+  font-size:9px;text-transform:uppercase;letter-spacing:.1em;cursor:pointer
+}
+.admin-activity-search{justify-content:space-between;margin:12px 0}
+.admin-activity-search input{min-width:280px;flex:1;max-width:520px}
+.admin-activity-search span{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#756e67}
+.admin-activity-list{border:1px solid #2a2622;background:#0b0b0b}
+.admin-activity-row{
+  display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:12px;align-items:start;
+  padding:13px 14px;border-top:1px solid #24211e
+}
+.admin-activity-row:first-child{border-top:0}
+.admin-activity-indicator{width:7px;height:7px;border-radius:50%;margin-top:5px;background:#6f6861}
+.admin-activity-row.success .admin-activity-indicator{background:#748d6d}
+.admin-activity-row.warning .admin-activity-indicator{background:#b48b63}
+.admin-activity-row.critical .admin-activity-indicator{background:#b86f65}
+.admin-activity-copy>div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.admin-activity-copy strong{font-size:11px;font-weight:500;color:#e8e0d8}
+.admin-activity-copy span{
+  font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#716a64;
+  border:1px solid #302b27;padding:3px 5px
+}
+.admin-activity-copy p{margin:5px 0 0;color:#817970;font-size:10px;line-height:1.45}
+.admin-activity-row time{font-size:9px;color:#716a64;white-space:nowrap}
+.admin-activity-note{margin:10px 0 0;color:#6f6861;font-size:9px;line-height:1.5}
+
+@media(max-width:700px){
+  .admin-activity-actions,.admin-activity-search{flex-direction:column;align-items:stretch}
+  .admin-activity-search input{min-width:0;max-width:none;width:100%}
+  .admin-activity-row{grid-template-columns:10px 1fr}
+  .admin-activity-row time{grid-column:2}
+}
