@@ -232,6 +232,7 @@ function DashboardApp() {
   const [adminHealthLoading, setAdminHealthLoading] = useState(false)
   const [adminHealthPriority, setAdminHealthPriority] = useState('all')
   const [adminHealthKind, setAdminHealthKind] = useState('all')
+  const [adminTestEmailLoading, setAdminTestEmailLoading] = useState(false)
   const [adminMusicChannelFilter, setAdminMusicChannelFilter] = useState('all')
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelMood, setNewChannelMood] = useState('')
@@ -290,6 +291,39 @@ function DashboardApp() {
     void loadAdminActivity()
     void loadAdminHealth()
   }, [session, isAdminPath])
+
+  async function sendAdminTestEmail() {
+    if (!session) return
+
+    setAdminTestEmailLoading(true)
+    setAdminError('')
+
+    try {
+      const response = await fetch(
+        'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/admin/health/send-test-email',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      const result = await response.json() as { error?: string; id?: string }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not send test alert email.')
+      }
+
+      setAdminError('')
+      window.alert('Test email sent. Check your inbox.')
+      void loadAdminActivity()
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Could not send test alert email.')
+    } finally {
+      setAdminTestEmailLoading(false)
+    }
+  }
 
   async function loadAdminHealth() {
     if (!session) return
@@ -1785,9 +1819,17 @@ function DashboardApp() {
                   <h2>Admin alerts</h2>
                   <p>Current player, playback and billing issues that need attention.</p>
                 </div>
-                <button onClick={() => void loadAdminHealth()} disabled={adminHealthLoading}>
+                <div className="admin-health-head-actions">
+                  <button
+                    onClick={() => void sendAdminTestEmail()}
+                    disabled={adminTestEmailLoading}
+                  >
+                    {adminTestEmailLoading ? 'Sending…' : 'Send test email'}
+                  </button>
+                                  <button onClick={() => void loadAdminHealth()} disabled={adminHealthLoading}>
                   {adminHealthLoading ? 'Refreshing…' : 'Refresh health'}
                 </button>
+                </div>
               </div>
 
               <div className="admin-health-metrics">
