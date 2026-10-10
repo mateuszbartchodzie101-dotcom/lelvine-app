@@ -732,11 +732,11 @@ function DashboardApp() {
           <section className="billing-panel">
             <div className="billing-head">
               <div>
-                <div className="eyebrow">Subscription</div>
-                <h2>{subscription ? 'Your LELVINE plan' : 'Choose your plan'}</h2>
+                <div className="eyebrow">Your Plan</div>
+                <h2>{subscription ? (subscription.plan ?? 'LELVINE') : 'Choose your plan'}</h2>
                 <p>
                   {subscription
-                    ? `${subscription.plan ?? 'LELVINE'} · ${subscription.status}${subscription.trial_end ? ' · trial until ' + new Date(subscription.trial_end).toLocaleDateString() : ''} · zones ${zones.length}/${zoneLimit === Infinity ? '∞' : zoneLimit}`
+                    ? `${subscription.status}${subscription.trial_end ? ' · trial until ' + new Date(subscription.trial_end).toLocaleDateString() : ''}`
                     : 'Start with a 7-day free trial. Cancel anytime.'}
                 </p>
               </div>
@@ -756,46 +756,109 @@ function DashboardApp() {
               )}
             </div>
 
-            <div className="plan-grid">
-              <article className={subscription?.plan === 'essence' ? 'plan-card current' : 'plan-card'}>
-                <span>Essence</span>
-                <strong>€49<small>/month</small></strong>
-                <p>1 zone · LELVINE channels · scheduling</p>
-                <button
-                  className="primary"
-                  onClick={() => void startCheckout('essence')}
-                  disabled={checkoutLoading !== null || Boolean(subscription)}
-                >
-                  {checkoutLoading === 'essence' ? 'Opening…' : subscription?.plan === 'essence' ? 'Current plan' : subscription ? 'Manage subscription' : 'Start 7-day trial'}
-                </button>
-              </article>
+            {subscription && (
+              <div className="plan-overview">
+                <div className="plan-overview-main">
+                  <span className="plan-kicker">Current plan</span>
+                  <strong className="plan-name">{subscription.plan ?? 'LELVINE'}</strong>
+                  <span className="plan-price">
+                    {subscription.plan === 'essence'
+                      ? '€49 / month'
+                      : subscription.plan === 'signature'
+                        ? '€99 / month'
+                        : subscription.plan === 'premium'
+                          ? '€199 / month'
+                          : 'Custom'}
+                  </span>
+                </div>
 
-              <article className={subscription?.plan === 'signature' ? 'plan-card current featured' : 'plan-card featured'}>
-                <span>Signature</span>
-                <strong>€99<small>/month</small></strong>
-                <p>Up to 3 zones · advanced scheduling · regular refreshes</p>
-                <button
-                  className="primary"
-                  onClick={() => void startCheckout('signature')}
-                  disabled={checkoutLoading !== null || Boolean(subscription)}
-                >
-                  {checkoutLoading === 'signature' ? 'Opening…' : subscription?.plan === 'signature' ? 'Current plan' : subscription ? 'Manage subscription' : 'Start 7-day trial'}
-                </button>
-              </article>
+                <div className="plan-metrics">
+                  <div>
+                    <span>Status</span>
+                    <strong>{subscription.status}</strong>
+                  </div>
+                  <div>
+                    <span>Zones</span>
+                    <strong>{zones.length}/{zoneLimit === Infinity ? '∞' : zoneLimit}</strong>
+                  </div>
+                  <div>
+                    <span>Trial ends</span>
+                    <strong>{subscription.trial_end ? new Date(subscription.trial_end).toLocaleDateString() : '—'}</strong>
+                  </div>
+                  <div>
+                    <span>Billing period ends</span>
+                    <strong>{subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : '—'}</strong>
+                  </div>
+                </div>
 
-              <article className={subscription?.plan === 'premium' ? 'plan-card current' : 'plan-card'}>
-                <span>Premium</span>
-                <strong>€199<small>/month</small></strong>
-                <p>Multiple zones · seasonal updates · Sound Concierge</p>
-                <button
-                  className="primary"
-                  onClick={() => void startCheckout('premium')}
-                  disabled={checkoutLoading !== null || Boolean(subscription)}
-                >
-                  {checkoutLoading === 'premium' ? 'Opening…' : subscription?.plan === 'premium' ? 'Current plan' : subscription ? 'Manage subscription' : 'Start 7-day trial'}
-                </button>
-              </article>
-            </div>
+                <div className="plan-features">
+                  <div className={subscriptionUsable ? 'plan-feature on' : 'plan-feature off'}>
+                    <span>Core music controls</span><strong>{subscriptionUsable ? 'Included' : 'Locked'}</strong>
+                  </div>
+                  <div className={advancedSchedulingEnabled ? 'plan-feature on' : 'plan-feature off'}>
+                    <span>Advanced scheduling</span><strong>{advancedSchedulingEnabled ? 'Included' : 'Not included'}</strong>
+                  </div>
+                  <div className={regularRefreshesEnabled ? 'plan-feature on' : 'plan-feature off'}>
+                    <span>Regular music refreshes</span><strong>{regularRefreshesEnabled ? 'Included' : 'Not included'}</strong>
+                  </div>
+                  <div className={seasonalUpdatesEnabled ? 'plan-feature on' : 'plan-feature off'}>
+                    <span>Seasonal updates</span><strong>{seasonalUpdatesEnabled ? 'Included' : 'Not included'}</strong>
+                  </div>
+                  <div className={premiumFeaturesEnabled ? 'plan-feature on' : 'plan-feature off'}>
+                    <span>Sound Concierge</span><strong>{premiumFeaturesEnabled ? 'Included' : 'Not included'}</strong>
+                  </div>
+                </div>
+
+                {subscription.cancel_at_period_end && (
+                  <div className="plan-cancel-note">
+                    Cancellation scheduled for the end of the current billing period.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!subscription && (
+              <div className="plan-grid">
+                <article className="plan-card">
+                  <span>Essence</span>
+                  <strong>€49<small>/month</small></strong>
+                  <p>1 zone · LELVINE channels · core music controls</p>
+                  <button
+                    className="primary"
+                    onClick={() => void startCheckout('essence')}
+                    disabled={checkoutLoading !== null}
+                  >
+                    {checkoutLoading === 'essence' ? 'Opening…' : 'Start 7-day trial'}
+                  </button>
+                </article>
+
+                <article className="plan-card featured">
+                  <span>Signature</span>
+                  <strong>€99<small>/month</small></strong>
+                  <p>Up to 3 zones · advanced scheduling · regular refreshes</p>
+                  <button
+                    className="primary"
+                    onClick={() => void startCheckout('signature')}
+                    disabled={checkoutLoading !== null}
+                  >
+                    {checkoutLoading === 'signature' ? 'Opening…' : 'Start 7-day trial'}
+                  </button>
+                </article>
+
+                <article className="plan-card">
+                  <span>Premium</span>
+                  <strong>€199<small>/month</small></strong>
+                  <p>Multiple zones · seasonal updates · Sound Concierge</p>
+                  <button
+                    className="primary"
+                    onClick={() => void startCheckout('premium')}
+                    disabled={checkoutLoading !== null}
+                  >
+                    {checkoutLoading === 'premium' ? 'Opening…' : 'Start 7-day trial'}
+                  </button>
+                </article>
+              </div>
+            )}
           </section>
         )}
 
