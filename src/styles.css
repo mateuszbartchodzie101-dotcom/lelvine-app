@@ -656,3 +656,48 @@ select{appearance:auto}
   .admin-activity-row{grid-template-columns:10px 1fr}
   .admin-activity-row time{grid-column:2}
 }
+
+
+/* ADMIN HEALTH MONITORING */
+.admin-health-monitor>.section-heading>button{
+  border:1px solid #40372f;background:transparent;color:#b6a493;padding:10px 12px;
+  font-size:9px;text-transform:uppercase;letter-spacing:.1em;cursor:pointer
+}
+.admin-health-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:14px 0}
+.admin-health-metrics article{border:1px solid #2e2925;background:#0d0d0d;padding:15px;display:flex;flex-direction:column;gap:5px}
+.admin-health-metrics span{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#766f68}
+.admin-health-metrics strong{font-family:'Playfair Display',serif;font-size:28px;font-weight:400}
+.admin-health-metrics .critical{border-color:#65413d}
+.admin-health-metrics .high{border-color:#66503b}
+.admin-health-metrics .medium{border-color:#5a5541}
+.admin-health-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 12px}
+.admin-health-filters select{
+  border:1px solid #332e2a;background:#0b0b0b;color:#d8d0c8;padding:10px 11px;font:inherit
+}
+.admin-health-filters span{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#756e67}
+.admin-health-list{border:1px solid #2a2622;background:#0b0b0b}
+.admin-health-alert{display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:12px;align-items:center;padding:13px 14px;border-top:1px solid #24211e}
+.admin-health-alert:first-child{border-top:0}
+.admin-health-priority{font-size:8px;text-transform:uppercase;letter-spacing:.12em;border:1px solid #3a332d;padding:5px 7px;text-align:center}
+.admin-health-alert.critical .admin-health-priority{border-color:#6b443f;color:#d18d82}
+.admin-health-alert.high .admin-health-priority{border-color:#6b563d;color:#c6a078}
+.admin-health-alert.medium .admin-health-priority{border-color:#5e5940;color:#bab484}
+.admin-health-copy{display:flex;flex-direction:column;gap:4px}
+.admin-health-copy strong{font-size:11px;font-weight:500;color:#e8e0d8}
+.admin-health-copy span{font-size:10px;color:#817970;line-height:1.45}
+.admin-health-meta{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.admin-health-meta span{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#716a64}
+.admin-health-meta time{font-size:9px;color:#716a64;white-space:nowrap}
+.admin-health-clear{padding:18px;display:flex;flex-direction:column;gap:4px}
+.admin-health-clear strong{font-size:12px;font-weight:500;color:#9fb092}
+.admin-health-clear span{font-size:10px;color:#817970}
+
+@media(max-width:800px){
+  .admin-health-metrics{grid-template-columns:1fr 1fr}
+  .admin-health-alert{grid-template-columns:1fr}
+  .admin-health-meta{align-items:flex-start}
+}
+@media(max-width:520px){
+  .admin-health-metrics{grid-template-columns:1fr}
+  .admin-health-filters{flex-direction:column;align-items:stretch}
+}
