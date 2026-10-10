@@ -75,6 +75,22 @@ type AdminCustomer = {
   unpaired_devices: number
 }
 
+type AdminActivityEvent = {
+  id: string
+  type: 'subscription' | 'music' | 'player' | 'error' | string
+  severity: 'info' | 'success' | 'warning' | 'critical' | string
+  title: string
+  detail: string
+  organization_id: string | null
+  device_id: string | null
+  created_at: string
+}
+
+type AdminActivity = {
+  generated_at: string
+  events: AdminActivityEvent[]
+}
+
 type AdminMusicLibrary = {
   channels: Channel[]
   tracks: Track[]
@@ -180,6 +196,10 @@ function DashboardApp() {
   const [adminStatusFilter, setAdminStatusFilter] = useState('all')
   const [adminPlayerFilter, setAdminPlayerFilter] = useState('all')
   const [adminDeviceSearch, setAdminDeviceSearch] = useState('')
+  const [adminActivity, setAdminActivity] = useState<AdminActivity | null>(null)
+  const [adminActivityLoading, setAdminActivityLoading] = useState(false)
+  const [adminActivitySearch, setAdminActivitySearch] = useState('')
+  const [adminActivityType, setAdminActivityType] = useState('all')
   const [adminMusicChannelFilter, setAdminMusicChannelFilter] = useState('all')
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelMood, setNewChannelMood] = useState('')
@@ -235,7 +255,37 @@ function DashboardApp() {
 
     void loadAdminSummary()
     void loadAdminMusic()
+    void loadAdminActivity()
   }, [session, isAdminPath])
+
+  async function loadAdminActivity() {
+    if (!session) return
+
+    setAdminActivityLoading(true)
+
+    try {
+      const response = await fetch(
+        'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/admin/activity',
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      const result = await response.json() as AdminActivity & { error?: string }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not load activity log.')
+      }
+
+      setAdminActivity(result)
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Could not load activity log.')
+    } finally {
+      setAdminActivityLoading(false)
+    }
+  }
 
   async function adminMusicRequest(path: string, options: RequestInit = {}) {
     if (!session) throw new Error('Not signed in.')
@@ -1175,6 +1225,16 @@ function DashboardApp() {
     ].some((value) => value.toLowerCase().includes(search))
   })
 
+  const filteredAdminActivity = (adminActivity?.events ?? []).filter((event) => {
+    const search = adminActivitySearch.trim().toLowerCase()
+    const matchesSearch =
+      !search ||
+      event.title.toLowerCase().includes(search) ||
+      event.detail.toLowerCase().includes(search)
+    const matchesType = adminActivityType === 'all' || event.type === adminActivityType
+    return matchesSearch && matchesType
+  })
+
   const selectedAdminCustomer =
     adminSummary?.customers.find((customer) => customer.id === selectedAdminCustomerId) ?? null
   const selectedAdminDevices =
@@ -1649,6 +1709,60 @@ function DashboardApp() {
                 </div>
               </section>
             )}
+
+            <section className="admin-section admin-activity-log" id="admin-activity-log">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">System Events</div>
+                  <h2>Activity log</h2>
+                </div>
+                <div className="admin-activity-actions">
+                  <select value={adminActivityType} onChange={(e) => setAdminActivityType(e.target.value)}>
+                    <option value="all">All events</option>
+                    <option value="player">Players</option>
+                    <option value="subscription">Subscriptions</option>
+                    <option value="music">Music</option>
+                    <option value="error">Errors</option>
+                  </select>
+                  <button onClick={() => void loadAdminActivity()} disabled={adminActivityLoading}>
+                    {adminActivityLoading ? 'Refreshing…' : 'Refresh log'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="admin-activity-search">
+                <input
+                  value={adminActivitySearch}
+                  onChange={(e) => setAdminActivitySearch(e.target.value)}
+                  placeholder="Search events"
+                />
+                <span>{filteredAdminActivity.length} events</span>
+              </div>
+
+              <div className="admin-activity-list">
+                {filteredAdminActivity.length === 0 ? (
+                  <div className="empty-state">No matching system events.</div>
+                ) : (
+                  filteredAdminActivity.slice(0, 150).map((event) => (
+                    <article className={'admin-activity-row ' + event.severity} key={event.id}>
+                      <div className="admin-activity-indicator"></div>
+                      <div className="admin-activity-copy">
+                        <div>
+                          <strong>{event.title}</strong>
+                          <span>{event.type}</span>
+                        </div>
+                        <p>{event.detail || 'No additional details'}</p>
+                      </div>
+                      <time>{new Date(event.created_at).toLocaleString()}</time>
+                    </article>
+                  ))
+                )}
+              </div>
+
+              <p className="admin-activity-note">
+                This feed currently uses recorded subscription, library and player state timestamps. Full state-change history will become richer as more live player events are recorded.
+              </p>
+            </section>
 
             <section id="admin-player-health" className="admin-section">
               <div className="section-heading">
