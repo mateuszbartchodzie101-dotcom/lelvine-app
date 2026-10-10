@@ -764,6 +764,16 @@ function DashboardApp() {
           <button onClick={() => supabase.auth.signOut()}>Sign out</button>
         </header>
 
+        <nav className="dashboard-nav" aria-label="Dashboard sections">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Overview</button>
+          <button onClick={() => goToOnboardingTarget('onboarding-spaces')}>Spaces</button>
+          <button onClick={() => goToOnboardingTarget('onboarding-player')}>Devices</button>
+          <button onClick={() => goToOnboardingTarget('dashboard-schedule')}>Schedule</button>
+          <button onClick={() => goToOnboardingTarget('dashboard-music')}>Music</button>
+          <button onClick={() => goToOnboardingTarget('onboarding-billing')}>Plan</button>
+          <a href="https://player.lelvine.com" target="_blank" rel="noreferrer">Open Player ↗</a>
+        </nav>
+
         <section className="welcome">
           <div className="eyebrow">Dashboard</div>
           <h1>{organization ? organization.name : 'Welcome to LELVINE.'}</h1>
@@ -1190,7 +1200,7 @@ function DashboardApp() {
               </div>
             </section>
 
-            <section className="schedule-section">
+            <section id="dashboard-schedule" className="schedule-section">
               <div className="section-heading">
                 <div>
                   <div className="eyebrow">Dayparting</div>
@@ -1366,7 +1376,7 @@ function DashboardApp() {
               )}
             </section>
 
-            <section className="music-library">
+            <section id="dashboard-music" className="music-library">
               <div className="section-heading">
                 <div>
                   <div className="eyebrow">LELVINE Music</div>
