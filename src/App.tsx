@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 
@@ -1698,8 +1698,139 @@ function PlayerRuntime() {
   const [runtimeMsg, setRuntimeMsg] = useState('')
   const [pairing, setPairing] = useState(false)
   const [lastHeartbeat, setLastHeartbeat] = useState<string | null>(null)
+  const [playlist, setPlaylist] = useState<Track[]>([])
+  const [trackIndex, setTrackIndex] = useState(0)
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
+  const [currentAudioUrl, setCurrentAudioUrl] = useState('')
+  const [audioReady, setAudioReady] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const paired = Boolean(deviceId && deviceToken)
+
+  async function resolveTrackAudio(track: Track) {
+    if (track.audio_url) return track.audio_url
+    if (!track.storage_path) return ''
+
+    const { data, error } = await supabase.storage
+      .from('music')
+      .createSignedUrl(track.storage_path, 60 * 60 * 6)
+
+    if (error || !data?.signedUrl) return ''
+    return data.signedUrl
+  }
+
+  async function loadPlaylist(channelId: string | null | undefined) {
+    if (!channelId) {
+      setPlaylist([])
+      setCurrentTrack(null)
+      setCurrentAudioUrl('')
+      setTrackIndex(0)
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('channel_id', channelId)
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .order('track_code', { ascending: true })
+
+    if (error) {
+      setRuntimeMsg('Could not load channel playlist: ' + error.message)
+      return
+    }
+
+    const playable = ((data ?? []) as Track[]).filter((track) => track.audio_url || track.storage_path)
+    setPlaylist(playable)
+    setTrackIndex(0)
+
+    if (playable.length === 0) {
+      setCurrentTrack(null)
+      setCurrentAudioUrl('')
+      setAudioReady(false)
+      setRuntimeMsg('Channel connected. Audio files can be added later.')
+      return
+    }
+
+    setRuntimeMsg('')
+  }
+
+  async function prepareTrack(index: number, autoplay = runtimeState === 'playing') {
+    if (playlist.length === 0) return
+
+    const normalizedIndex = ((index % playlist.length) + playlist.length) % playlist.length
+    const track = playlist[normalizedIndex]
+    const url = await resolveTrackAudio(track)
+
+    if (!url) {
+      if (playlist.length > 1) {
+        await prepareTrack(normalizedIndex + 1, autoplay)
+      } else {
+        setRuntimeMsg('This channel has no playable audio file yet.')
+      }
+      return
+    }
+
+    setTrackIndex(normalizedIndex)
+    setCurrentTrack(track)
+    setCurrentAudioUrl(url)
+    setAudioReady(false)
+
+    window.setTimeout(async () => {
+      const audio = audioRef.current
+      if (!audio || !autoplay) return
+      try {
+        await audio.play()
+        setRuntimeState('playing')
+        setRuntimeMsg('')
+      } catch {
+        setRuntimeState('paused')
+        setRuntimeMsg('Press Play once on this device to enable audio playback.')
+      }
+    }, 0)
+  }
+
+  async function playRuntime() {
+    if (playlist.length === 0) {
+      setRuntimeState('paused')
+      setRuntimeMsg('No audio files are available in this channel yet.')
+      return
+    }
+
+    if (!currentTrack || !currentAudioUrl) {
+      await prepareTrack(trackIndex, true)
+      return
+    }
+
+    try {
+      await audioRef.current?.play()
+      setRuntimeState('playing')
+      setRuntimeMsg('')
+    } catch {
+      setRuntimeState('paused')
+      setRuntimeMsg('Press Play once on this device to enable audio playback.')
+    }
+  }
+
+  function pauseRuntime() {
+    audioRef.current?.pause()
+    setRuntimeState('paused')
+  }
+
+  function stopRuntime() {
+    const audio = audioRef.current
+    if (audio) {
+      audio.pause()
+      audio.currentTime = 0
+    }
+    setRuntimeState('stopped')
+  }
+
+  async function nextTrack() {
+    if (playlist.length === 0) return
+    await prepareTrack(trackIndex + 1, runtimeState === 'playing')
+  }
 
   async function bootstrap(id = deviceId, token = deviceToken) {
     if (!id || !token) return
@@ -1737,7 +1868,7 @@ function PlayerRuntime() {
     const { data, error } = await supabase.rpc('pair_player_device', {
       p_activation_code: activationCode.trim(),
       p_platform: 'web-player',
-      p_app_version: '1.0.0',
+      p_app_version: '1.1.0',
     })
 
     if (error) {
@@ -1764,10 +1895,10 @@ function PlayerRuntime() {
       p_token: deviceToken,
       p_playback_state: runtimeState,
       p_current_channel_id: config?.channel?.id ?? null,
-      p_current_track_id: null,
+      p_current_track_id: currentTrack?.id ?? null,
       p_volume: volume,
-      p_app_version: '1.0.0',
-      p_last_error: null,
+      p_app_version: '1.1.0',
+      p_last_error: runtimeMsg || null,
     })
 
     if (error) {
@@ -1794,13 +1925,14 @@ function PlayerRuntime() {
 
   async function processCommand(command: RuntimeCommand) {
     try {
-      if (command.command_type === 'play' || command.command_type === 'resume') setRuntimeState('playing')
-      if (command.command_type === 'pause') setRuntimeState('paused')
-      if (command.command_type === 'stop') setRuntimeState('stopped')
+      if (command.command_type === 'play' || command.command_type === 'resume') await playRuntime()
+      if (command.command_type === 'pause') pauseRuntime()
+      if (command.command_type === 'stop') stopRuntime()
+      if (command.command_type === 'next') await nextTrack()
 
       if (command.command_type === 'set_volume') {
         const nextVolume = Number(command.payload?.volume)
-        if (Number.isFinite(nextVolume)) setVolume(nextVolume)
+        if (Number.isFinite(nextVolume)) setVolume(Math.max(0, Math.min(100, nextVolume)))
       }
 
       if (command.command_type === 'sync' || command.command_type === 'set_channel') {
@@ -1836,12 +1968,15 @@ function PlayerRuntime() {
   }
 
   function unpairLocal() {
+    stopRuntime()
     localStorage.removeItem('lelvine_player_device_id')
     localStorage.removeItem('lelvine_player_token')
     setDeviceId('')
     setDeviceToken('')
     setConfig(null)
-    setRuntimeState('stopped')
+    setPlaylist([])
+    setCurrentTrack(null)
+    setCurrentAudioUrl('')
     setLastHeartbeat(null)
   }
 
@@ -1849,6 +1984,21 @@ function PlayerRuntime() {
     if (!paired) return
     void bootstrap()
   }, [deviceId, deviceToken])
+
+  useEffect(() => {
+    void loadPlaylist(config?.channel?.id)
+  }, [config?.channel?.id])
+
+  useEffect(() => {
+    if (playlist.length === 0) return
+    void prepareTrack(0, runtimeState === 'playing')
+  }, [playlist])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.volume = Math.max(0, Math.min(1, volume / 100))
+  }, [volume, currentAudioUrl])
 
   useEffect(() => {
     if (!paired) return
@@ -1863,10 +2013,27 @@ function PlayerRuntime() {
       window.clearInterval(heartbeatTimer)
       window.clearInterval(commandTimer)
     }
-  }, [paired, deviceId, deviceToken, runtimeState, volume, config?.channel?.id])
+  }, [paired, deviceId, deviceToken, runtimeState, volume, config?.channel?.id, currentTrack?.id, runtimeMsg])
 
   return (
     <main className="runtime-shell">
+      <audio
+        ref={audioRef}
+        src={currentAudioUrl || undefined}
+        preload="auto"
+        onCanPlay={() => setAudioReady(true)}
+        onPlay={() => setRuntimeState('playing')}
+        onPause={() => {
+          if (runtimeState === 'playing') setRuntimeState('paused')
+        }}
+        onEnded={() => void nextTrack()}
+        onError={() => {
+          setAudioReady(false)
+          setRuntimeMsg('Audio file could not be played. Moving to the next track.')
+          window.setTimeout(() => void nextTrack(), 500)
+        }}
+      />
+
       <header className="runtime-header">
         <div className="brand">LELVINE<span>PLAYER</span></div>
         {paired && <div className="runtime-online"><i></i> Connected</div>}
@@ -1911,21 +2078,28 @@ function PlayerRuntime() {
               <span>LELVINE</span>
             </div>
             <div className="runtime-track">
-              <div className="eyebrow">Current sound environment</div>
-              <h2>{config?.channel?.name ?? 'No channel assigned'}</h2>
-              <p>{config?.channel?.mood ?? 'Waiting for a channel from the dashboard.'}</p>
+              <div className="eyebrow">Now playing</div>
+              <h2>{currentTrack?.title ?? config?.channel?.name ?? 'No channel assigned'}</h2>
+              <p>
+                {currentTrack
+                  ? (currentTrack.track_code ? currentTrack.track_code + ' · ' : '') + (config?.channel?.name ?? 'LELVINE')
+                  : config?.channel?.mood ?? 'Waiting for a channel from the dashboard.'}
+              </p>
               <div className="runtime-state">
                 <span className={'state-pill ' + runtimeState}>{runtimeState}</span>
                 <span>Volume {volume}%</span>
+                <span>{playlist.length} playable tracks</span>
+                {currentAudioUrl && <span>{audioReady ? 'Audio ready' : 'Loading audio…'}</span>}
               </div>
             </div>
           </div>
 
           <div className="runtime-controls">
-            <button onClick={() => setRuntimeState(runtimeState === 'playing' ? 'paused' : 'playing')}>
+            <button onClick={() => runtimeState === 'playing' ? pauseRuntime() : void playRuntime()}>
               {runtimeState === 'playing' ? 'Pause' : 'Play'}
             </button>
-            <button onClick={() => setRuntimeState('stopped')}>Stop</button>
+            <button onClick={() => void nextTrack()} disabled={playlist.length < 2}>Next</button>
+            <button onClick={stopRuntime}>Stop</button>
             <button onClick={() => void bootstrap()}>Sync</button>
           </div>
 
@@ -1945,7 +2119,9 @@ function PlayerRuntime() {
             <div><span>Player status</span><strong>ONLINE</strong></div>
             <div><span>Heartbeat</span><strong>{lastHeartbeat ? new Date(lastHeartbeat).toLocaleTimeString() : 'Connecting…'}</strong></div>
             <div><span>Timezone</span><strong>{config?.location.timezone ?? '—'}</strong></div>
-            <div><span>Audio</span><strong>Awaiting catalog files</strong></div>
+            <div><span>Channel</span><strong>{config?.channel?.name ?? 'Not assigned'}</strong></div>
+            <div><span>Track</span><strong>{currentTrack?.title ?? 'Waiting for audio'}</strong></div>
+            <div><span>Playlist</span><strong>{playlist.length > 0 ? playlist.length + ' ready' : 'Awaiting audio files'}</strong></div>
           </div>
 
           {runtimeMsg && <div className="data-message">{runtimeMsg}</div>}
