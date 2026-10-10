@@ -351,9 +351,34 @@ function DashboardApp() {
     setDataLoading(false)
   }
 
+  const subscriptionUsable = subscription ? ['trialing', 'active'].includes(subscription.status) : false
+  const zoneLimit =
+    subscription?.plan === 'essence'
+      ? 1
+      : subscription?.plan === 'signature'
+        ? 3
+        : subscription?.plan === 'premium'
+          ? Infinity
+          : 0
+  const zoneLimitReached = Number.isFinite(zoneLimit) && zones.length >= zoneLimit
+
   async function createZone(e: FormEvent) {
     e.preventDefault()
     if (!zoneLocationId || !zoneName.trim()) return
+
+    if (!subscriptionUsable) {
+      setDataMsg('Start a trial or activate a subscription before adding zones.')
+      return
+    }
+
+    if (zoneLimitReached) {
+      setDataMsg(
+        subscription?.plan === 'essence'
+          ? 'Essence includes 1 zone. Use Manage subscription if you want to change plan.'
+          : 'Signature includes up to 3 zones. Use Manage subscription if you want to change plan.'
+      )
+      return
+    }
 
     setDataLoading(true)
     setDataMsg('')
@@ -696,7 +721,7 @@ function DashboardApp() {
                 <h2>{subscription ? 'Your LELVINE plan' : 'Choose your plan'}</h2>
                 <p>
                   {subscription
-                    ? `${subscription.plan ?? 'LELVINE'} · ${subscription.status}${subscription.trial_end ? ' · trial until ' + new Date(subscription.trial_end).toLocaleDateString() : ''}`
+                    ? `${subscription.plan ?? 'LELVINE'} · ${subscription.status}${subscription.trial_end ? ' · trial until ' + new Date(subscription.trial_end).toLocaleDateString() : ''} · zones ${zones.length}/${zoneLimit === Infinity ? '∞' : zoneLimit}`
                     : 'Start with a 7-day free trial. Cancel anytime.'}
                 </p>
               </div>
@@ -724,9 +749,9 @@ function DashboardApp() {
                 <button
                   className="primary"
                   onClick={() => void startCheckout('essence')}
-                  disabled={checkoutLoading !== null}
+                  disabled={checkoutLoading !== null || Boolean(subscription)}
                 >
-                  {checkoutLoading === 'essence' ? 'Opening…' : subscription?.plan === 'essence' ? 'Current plan' : 'Start 7-day trial'}
+                  {checkoutLoading === 'essence' ? 'Opening…' : subscription?.plan === 'essence' ? 'Current plan' : subscription ? 'Manage subscription' : 'Start 7-day trial'}
                 </button>
               </article>
 
@@ -737,9 +762,9 @@ function DashboardApp() {
                 <button
                   className="primary"
                   onClick={() => void startCheckout('signature')}
-                  disabled={checkoutLoading !== null}
+                  disabled={checkoutLoading !== null || Boolean(subscription)}
                 >
-                  {checkoutLoading === 'signature' ? 'Opening…' : subscription?.plan === 'signature' ? 'Current plan' : 'Start 7-day trial'}
+                  {checkoutLoading === 'signature' ? 'Opening…' : subscription?.plan === 'signature' ? 'Current plan' : subscription ? 'Manage subscription' : 'Start 7-day trial'}
                 </button>
               </article>
 
@@ -750,9 +775,9 @@ function DashboardApp() {
                 <button
                   className="primary"
                   onClick={() => void startCheckout('premium')}
-                  disabled={checkoutLoading !== null}
+                  disabled={checkoutLoading !== null || Boolean(subscription)}
                 >
-                  {checkoutLoading === 'premium' ? 'Opening…' : subscription?.plan === 'premium' ? 'Current plan' : 'Start 7-day trial'}
+                  {checkoutLoading === 'premium' ? 'Opening…' : subscription?.plan === 'premium' ? 'Current plan' : subscription ? 'Manage subscription' : 'Start 7-day trial'}
                 </button>
               </article>
             </div>
@@ -810,7 +835,15 @@ function DashboardApp() {
                     </select>
                     <label>Zone name</label>
                     <input value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder="Lobby" required />
-                    <button className="primary" disabled={dataLoading}>{dataLoading ? 'Saving…' : 'Add zone'}</button>
+                    <button className="primary" disabled={dataLoading || !subscriptionUsable || zoneLimitReached}>
+                      {dataLoading
+                        ? 'Saving…'
+                        : !subscriptionUsable
+                          ? 'Start a plan first'
+                          : zoneLimitReached
+                            ? 'Zone limit reached'
+                            : 'Add zone'}
+                    </button>
                   </form>
                 )}
               </article>
