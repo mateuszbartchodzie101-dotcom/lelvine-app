@@ -385,6 +385,74 @@ function DashboardApp() {
     configuredZones === zones.length &&
     devices.length > 0 &&
     attentionDevices === 0
+
+  const trialDaysLeft = subscription?.trial_end
+    ? Math.ceil((new Date(subscription.trial_end).getTime() - Date.now()) / 86400000)
+    : null
+
+  const dashboardAlerts = [
+    ...(!subscription
+      ? [{
+          key: 'no-plan',
+          level: 'warning',
+          title: 'No active plan',
+          detail: 'Choose a plan to activate zones and playback.',
+          target: 'onboarding-billing',
+          action: 'Choose plan',
+        }]
+      : []),
+    ...(trialDaysLeft !== null && trialDaysLeft >= 0 && trialDaysLeft <= 3
+      ? [{
+          key: 'trial-ending',
+          level: 'warning',
+          title: trialDaysLeft === 0 ? 'Trial ends today' : `Trial ends in ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'}`,
+          detail: 'Review your subscription before the trial period ends.',
+          target: 'onboarding-billing',
+          action: 'View plan',
+        }]
+      : []),
+    ...(subscription?.cancel_at_period_end
+      ? [{
+          key: 'cancel-scheduled',
+          level: 'warning',
+          title: 'Subscription cancellation scheduled',
+          detail: 'Your access is scheduled to end at the close of the current billing period.',
+          target: 'onboarding-billing',
+          action: 'Manage plan',
+        }]
+      : []),
+    ...zones
+      .filter((zone) => !zone.channel_id)
+      .map((zone) => ({
+        key: 'zone-' + zone.id,
+        level: 'warning',
+        title: zone.name + ' has no music assigned',
+        detail: 'Choose a LELVINE channel for this zone.',
+        target: 'onboarding-sound',
+        action: 'Assign music',
+      })),
+    ...devices
+      .filter((device) => device.device_status === 'offline')
+      .map((device) => ({
+        key: 'offline-' + device.device_id,
+        level: 'critical',
+        title: device.device_name + ' is offline',
+        detail: device.location_name + ' · ' + device.zone_name,
+        target: 'onboarding-player',
+        action: 'Check player',
+      })),
+    ...devices
+      .filter((device) => device.device_status === 'unpaired')
+      .map((device) => ({
+        key: 'unpaired-' + device.device_id,
+        level: 'warning',
+        title: device.device_name + ' is not paired',
+        detail: 'Use the pairing code to connect this player.',
+        target: 'onboarding-player',
+        action: 'Pair player',
+      })),
+  ]
+  const criticalAlertCount = dashboardAlerts.filter((alert) => alert.level === 'critical').length
   const onboardingCoreSteps = [
     {
       key: 'organization',
@@ -858,6 +926,43 @@ function DashboardApp() {
               </div>
             )}
           </div>
+        </section>
+
+        <section className={dashboardAlerts.length > 0 ? 'alerts-panel has-alerts' : 'alerts-panel clear'}>
+          <div className="alerts-head">
+            <div>
+              <div className="eyebrow">Alerts</div>
+              <h2>{dashboardAlerts.length > 0 ? 'Needs attention' : 'Everything looks good'}</h2>
+            </div>
+            <div className={criticalAlertCount > 0 ? 'alerts-count critical' : 'alerts-count'}>
+              {dashboardAlerts.length}
+            </div>
+          </div>
+
+          {dashboardAlerts.length === 0 ? (
+            <div className="alerts-clear-message">
+              <span>✓</span>
+              <div>
+                <strong>No active alerts</strong>
+                <p>Your plan, zones and connected players do not currently need attention.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="alerts-list">
+              {dashboardAlerts.slice(0, 8).map((alert) => (
+                <article className={'alert-row ' + alert.level} key={alert.key}>
+                  <span className="alert-indicator"></span>
+                  <div className="alert-copy">
+                    <strong>{alert.title}</strong>
+                    <span>{alert.detail}</span>
+                  </div>
+                  <button onClick={() => goToOnboardingTarget(alert.target)}>
+                    {alert.action}
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className={onboardingComplete ? 'onboarding-card complete' : 'onboarding-card'}>
