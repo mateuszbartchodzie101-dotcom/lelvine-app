@@ -83,11 +83,16 @@ type AdminActivityEvent = {
   detail: string
   organization_id: string | null
   device_id: string | null
+  actor_user_id?: string | null
+  actor_email?: string | null
+  source?: string | null
+  metadata?: Record<string, unknown>
   created_at: string
 }
 
 type AdminActivity = {
   generated_at: string
+  persistent?: boolean
   events: AdminActivityEvent[]
 }
 
@@ -1715,6 +1720,7 @@ function DashboardApp() {
                 <div>
                   <div className="eyebrow">System Events</div>
                   <h2>Activity log</h2>
+                  <p>{adminActivity?.persistent ? 'Persistent audit enabled' : 'Derived activity feed'}</p>
                 </div>
                 <div className="admin-activity-actions">
                   <select value={adminActivityType} onChange={(e) => setAdminActivityType(e.target.value)}>
@@ -1752,6 +1758,13 @@ function DashboardApp() {
                           <span>{event.type}</span>
                         </div>
                         <p>{event.detail || 'No additional details'}</p>
+                        {(event.actor_email || event.source) && (
+                          <small>
+                            {event.actor_email ? 'Actor: ' + event.actor_email : ''}
+                            {event.actor_email && event.source ? ' · ' : ''}
+                            {event.source ? 'Source: ' + event.source : ''}
+                          </small>
+                        )}
                       </div>
                       <time>{new Date(event.created_at).toLocaleString()}</time>
                     </article>
@@ -1760,7 +1773,9 @@ function DashboardApp() {
               </div>
 
               <p className="admin-activity-note">
-                This feed currently uses recorded subscription, library and player state timestamps. Full state-change history will become richer as more live player events are recorded.
+                {adminActivity?.persistent
+                  ? 'Persistent audit history is active. New player, subscription and music changes are stored as individual events.'
+                  : 'Persistent audit table is not active yet, so this view is temporarily derived from current system timestamps.'}
               </p>
             </section>
 
