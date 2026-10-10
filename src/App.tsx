@@ -374,6 +374,17 @@ function DashboardApp() {
 
   const hasChannelAssigned = zones.some((zone) => Boolean(zone.channel_id))
   const hasPairedPlayer = devices.some((device) => Boolean(device.paired_at))
+  const onlineDevices = devices.filter((device) => device.device_status === 'online').length
+  const playingDevices = devices.filter((device) => device.playback_state === 'playing').length
+  const configuredZones = zones.filter((zone) => Boolean(zone.channel_id)).length
+  const attentionDevices = devices.filter((device) => device.device_status === 'offline' || device.device_status === 'unpaired').length
+  const systemHealthy =
+    Boolean(organization) &&
+    subscriptionUsable &&
+    zones.length > 0 &&
+    configuredZones === zones.length &&
+    devices.length > 0 &&
+    attentionDevices === 0
   const onboardingCoreSteps = [
     {
       key: 'organization',
@@ -780,11 +791,73 @@ function DashboardApp() {
           <p>{session.user.email}</p>
         </section>
 
-        <section className="stats">
-          <article><strong>{organization ? 1 : 0}</strong><span>Organization</span></article>
-          <article><strong>{locations.length}</strong><span>Locations</span></article>
-          <article><strong>{zones.length}</strong><span>Zones</span></article>
-          <article><strong>{tracks.length}</strong><span>Tracks</span></article>
+        <section className="overview-dashboard">
+          <div className="overview-head">
+            <div>
+              <div className="eyebrow">Live overview</div>
+              <h2>Property status</h2>
+            </div>
+            <div className={systemHealthy ? 'system-health healthy' : 'system-health attention'}>
+              <span></span>
+              {systemHealthy ? 'All systems ready' : 'Setup needs attention'}
+            </div>
+          </div>
+
+          <div className="overview-metrics">
+            <article>
+              <span>Plan</span>
+              <strong>{subscription?.plan ?? 'No plan'}</strong>
+              <small>{subscription?.status ?? 'Choose a plan to activate playback'}</small>
+            </article>
+            <article>
+              <span>Zones configured</span>
+              <strong>{configuredZones}/{zones.length}</strong>
+              <small>{zones.length === 0 ? 'No zones yet' : configuredZones === zones.length ? 'All zones have sound' : 'Assign music to remaining zones'}</small>
+            </article>
+            <article>
+              <span>Players online</span>
+              <strong>{onlineDevices}/{devices.length}</strong>
+              <small>{attentionDevices > 0 ? attentionDevices + ' need attention' : devices.length > 0 ? 'All connected players healthy' : 'No players paired yet'}</small>
+            </article>
+            <article>
+              <span>Playing now</span>
+              <strong>{playingDevices}</strong>
+              <small>{playingDevices > 0 ? 'Active playback sessions' : 'No active playback reported'}</small>
+            </article>
+          </div>
+
+          <div className="overview-zones">
+            <div className="overview-zones-head">
+              <div>
+                <span>Current sound</span>
+                <strong>Zones</strong>
+              </div>
+              <button onClick={() => goToOnboardingTarget('onboarding-sound')}>Manage spaces</button>
+            </div>
+
+            {zones.length === 0 ? (
+              <div className="overview-empty">Add your first zone to see live sound status here.</div>
+            ) : (
+              <div className="overview-zone-list">
+                {zones.slice(0, 6).map((zone) => {
+                  const current = overviewByZone[zone.id]
+                  const zoneDevice = devices.find((device) => device.zone_id === zone.id)
+                  return (
+                    <div className="overview-zone-row" key={zone.id}>
+                      <div>
+                        <strong>{zone.name}</strong>
+                        <span>{current?.current_channel_name ?? current?.default_channel_name ?? 'No channel assigned'}</span>
+                      </div>
+                      <div className="overview-zone-state">
+                        <span className={'status-dot ' + (zoneDevice?.device_status ?? 'unpaired')}></span>
+                        <span>{zoneDevice ? zoneDevice.device_status : 'no player'}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </section>
 
         <section className={onboardingComplete ? 'onboarding-card complete' : 'onboarding-card'}>
