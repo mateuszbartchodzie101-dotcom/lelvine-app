@@ -18,6 +18,7 @@ type Track = {
   storage_path: string | null
   duration_seconds: number | null
   sort_order: number
+  active?: boolean
 }
 type Schedule = {
   id: string
@@ -72,6 +73,23 @@ type AdminCustomer = {
   online_devices: number
   offline_devices: number
   unpaired_devices: number
+}
+
+type AdminMusicLibrary = {
+  channels: Channel[]
+  tracks: Track[]
+}
+
+type AdminTrackDraft = {
+  channel_id: string
+  title: string
+  track_code: string
+  bpm: string
+  musical_key: string
+  audio_url: string
+  storage_path: string
+  duration_seconds: string
+  sort_order: string
 }
 
 type AdminSummary = {
@@ -153,6 +171,23 @@ function DashboardApp() {
   const [adminError, setAdminError] = useState('')
   const [selectedAdminCustomerId, setSelectedAdminCustomerId] = useState<string | null>(null)
   const [adminActionLoading, setAdminActionLoading] = useState<string | null>(null)
+  const [adminMusic, setAdminMusic] = useState<AdminMusicLibrary | null>(null)
+  const [adminMusicLoading, setAdminMusicLoading] = useState(false)
+  const [adminMusicMsg, setAdminMusicMsg] = useState('')
+  const [adminMusicChannelFilter, setAdminMusicChannelFilter] = useState('all')
+  const [newChannelName, setNewChannelName] = useState('')
+  const [newChannelMood, setNewChannelMood] = useState('')
+  const [newTrack, setNewTrack] = useState<AdminTrackDraft>({
+    channel_id: '',
+    title: '',
+    track_code: '',
+    bpm: '',
+    musical_key: '',
+    audio_url: '',
+    storage_path: '',
+    duration_seconds: '',
+    sort_order: '0',
+  })
   const isAdminPath = window.location.pathname.startsWith('/admin')
 
   const [orgName, setOrgName] = useState('')
@@ -193,7 +228,119 @@ function DashboardApp() {
     if (!session || !isAdminPath) return
 
     void loadAdminSummary()
+    void loadAdminMusic()
   }, [session, isAdminPath])
+
+  async function adminMusicRequest(path: string, options: RequestInit = {}) {
+    if (!session) throw new Error('Not signed in.')
+
+    const response = await fetch(
+      'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev' + path,
+      {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+          ...(options.headers || {}),
+        },
+      }
+    )
+
+    const result = await response.json() as Record<string, unknown> & { error?: string }
+    if (!response.ok) throw new Error(result.error || 'Admin music request failed.')
+    return result
+  }
+
+  async function loadAdminMusic() {
+    if (!session) return
+    setAdminMusicLoading(true)
+    setAdminMusicMsg('')
+
+    try {
+      const result = await adminMusicRequest('/admin/music') as unknown as AdminMusicLibrary
+      setAdminMusic(result)
+      if (!newTrack.channel_id && result.channels[0]) {
+        setNewTrack((current) => ({ ...current, channel_id: result.channels[0].id }))
+      }
+    } catch (error) {
+      setAdminMusicMsg(error instanceof Error ? error.message : 'Could not load music library.')
+    } finally {
+      setAdminMusicLoading(false)
+    }
+  }
+
+  async function createAdminChannel(e: FormEvent) {
+    e.preventDefault()
+    if (!newChannelName.trim()) return
+
+    setAdminMusicLoading(true)
+    setAdminMusicMsg('')
+
+    try {
+      await adminMusicRequest('/admin/music/channel', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newChannelName.trim(),
+          mood: newChannelMood.trim() || null,
+          active: true,
+        }),
+      })
+      setNewChannelName('')
+      setNewChannelMood('')
+      setAdminMusicMsg('Channel added.')
+      await loadAdminMusic()
+    } catch (error) {
+      setAdminMusicMsg(error instanceof Error ? error.message : 'Could not add channel.')
+      setAdminMusicLoading(false)
+    }
+  }
+
+  async function createAdminTrack(e: FormEvent) {
+    e.preventDefault()
+    if (!newTrack.channel_id || !newTrack.title.trim()) return
+
+    setAdminMusicLoading(true)
+    setAdminMusicMsg('')
+
+    try {
+      await adminMusicRequest('/admin/music/track', {
+        method: 'POST',
+        body: JSON.stringify(newTrack),
+      })
+      setNewTrack((current) => ({
+        ...current,
+        title: '',
+        track_code: '',
+        bpm: '',
+        musical_key: '',
+        audio_url: '',
+        storage_path: '',
+        duration_seconds: '',
+        sort_order: '0',
+      }))
+      setAdminMusicMsg('Track added.')
+      await loadAdminMusic()
+    } catch (error) {
+      setAdminMusicMsg(error instanceof Error ? error.message : 'Could not add track.')
+      setAdminMusicLoading(false)
+    }
+  }
+
+  async function patchAdminMusic(kind: 'channel' | 'track', id: string, patch: Record<string, unknown>) {
+    setAdminMusicLoading(true)
+    setAdminMusicMsg('')
+
+    try {
+      await adminMusicRequest(`/admin/music/${kind}/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      })
+      await loadAdminMusic()
+    } catch (error) {
+      setAdminMusicMsg(error instanceof Error ? error.message : 'Could not update music library.')
+      setAdminMusicLoading(false)
+    }
+  }
 
   async function openAdminCustomerPortal(organizationId: string) {
     if (!session) return
@@ -1004,6 +1151,194 @@ function DashboardApp() {
               <article><span>Subscriptions</span><strong>{adminSummary.metrics.active_subscriptions}</strong><small>{adminSummary.metrics.trialing} trialing</small></article>
               <article><span>Est. MRR</span><strong>€{adminSummary.metrics.mrr_eur}</strong><small>Based on active test plans</small></article>
               <article><span>Players online</span><strong>{adminSummary.metrics.online_devices}/{adminSummary.metrics.devices}</strong><small>{adminSummary.metrics.offline_devices} offline · {adminSummary.metrics.unpaired_devices} unpaired</small></article>
+            </section>
+
+            <section className="admin-section admin-music-library" id="admin-music-library">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Content Library</div>
+                  <h2>Music admin</h2>
+                </div>
+                <div className="admin-music-head-actions">
+                  <select
+                    value={adminMusicChannelFilter}
+                    onChange={(e) => setAdminMusicChannelFilter(e.target.value)}
+                  >
+                    <option value="all">All channels</option>
+                    {(adminMusic?.channels ?? []).map((channel) => (
+                      <option key={channel.id} value={channel.id}>{channel.name}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => void loadAdminMusic()} disabled={adminMusicLoading}>
+                    {adminMusicLoading ? 'Refreshing…' : 'Refresh library'}
+                  </button>
+                </div>
+              </div>
+
+              {adminMusicMsg && <div className="data-message">{adminMusicMsg}</div>}
+
+              <div className="admin-music-layout">
+                <div className="admin-music-panel">
+                  <div className="admin-music-panel-head">
+                    <div>
+                      <span>Channels</span>
+                      <strong>{adminMusic?.channels.length ?? 0}</strong>
+                    </div>
+                  </div>
+
+                  <form className="admin-music-form compact" onSubmit={createAdminChannel}>
+                    <input
+                      value={newChannelName}
+                      onChange={(e) => setNewChannelName(e.target.value)}
+                      placeholder="Channel name"
+                      required
+                    />
+                    <input
+                      value={newChannelMood}
+                      onChange={(e) => setNewChannelMood(e.target.value)}
+                      placeholder="Mood / positioning"
+                    />
+                    <button disabled={adminMusicLoading}>Add channel</button>
+                  </form>
+
+                  <div className="admin-channel-list">
+                    {(adminMusic?.channels ?? []).map((channel) => (
+                      <div className="admin-channel-row" key={channel.id}>
+                        <div>
+                          <strong>{channel.name}</strong>
+                          <small>{channel.mood ?? channel.slug}</small>
+                        </div>
+                        <button
+                          className={channel.active ? 'toggle-active on' : 'toggle-active'}
+                          onClick={() => void patchAdminMusic('channel', channel.id, { active: !channel.active })}
+                          disabled={adminMusicLoading}
+                        >
+                          {channel.active ? 'Active' : 'Hidden'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="admin-music-panel wide">
+                  <div className="admin-music-panel-head">
+                    <div>
+                      <span>Tracks</span>
+                      <strong>{adminMusic?.tracks.length ?? 0}</strong>
+                    </div>
+                    <small>
+                      {(adminMusic?.tracks ?? []).filter((track) => Boolean(track.audio_url || track.storage_path)).length} with audio
+                    </small>
+                  </div>
+
+                  <form className="admin-track-form" onSubmit={createAdminTrack}>
+                    <select
+                      value={newTrack.channel_id}
+                      onChange={(e) => setNewTrack((current) => ({ ...current, channel_id: e.target.value }))}
+                      required
+                    >
+                      <option value="">Choose channel</option>
+                      {(adminMusic?.channels ?? []).filter((channel) => channel.active).map((channel) => (
+                        <option key={channel.id} value={channel.id}>{channel.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      value={newTrack.title}
+                      onChange={(e) => setNewTrack((current) => ({ ...current, title: e.target.value }))}
+                      placeholder="Track title"
+                      required
+                    />
+                    <input
+                      value={newTrack.track_code}
+                      onChange={(e) => setNewTrack((current) => ({ ...current, track_code: e.target.value }))}
+                      placeholder="Code e.g. LS-051"
+                    />
+                    <input
+                      value={newTrack.bpm}
+                      onChange={(e) => setNewTrack((current) => ({ ...current, bpm: e.target.value }))}
+                      placeholder="BPM"
+                      inputMode="numeric"
+                    />
+                    <input
+                      value={newTrack.musical_key}
+                      onChange={(e) => setNewTrack((current) => ({ ...current, musical_key: e.target.value }))}
+                      placeholder="Key"
+                    />
+                    <input
+                      value={newTrack.sort_order}
+                      onChange={(e) => setNewTrack((current) => ({ ...current, sort_order: e.target.value }))}
+                      placeholder="Order"
+                      inputMode="numeric"
+                    />
+                    <input
+                      className="span-two"
+                      value={newTrack.audio_url}
+                      onChange={(e) => setNewTrack((current) => ({ ...current, audio_url: e.target.value }))}
+                      placeholder="Audio URL (optional for now)"
+                    />
+                    <input
+                      className="span-two"
+                      value={newTrack.storage_path}
+                      onChange={(e) => setNewTrack((current) => ({ ...current, storage_path: e.target.value }))}
+                      placeholder="Supabase storage path (optional)"
+                    />
+                    <button disabled={adminMusicLoading}>Add track</button>
+                  </form>
+
+                  <div className="admin-track-list">
+                    {(adminMusic?.tracks ?? [])
+                      .filter((track) => adminMusicChannelFilter === 'all' || track.channel_id === adminMusicChannelFilter)
+                      .map((track) => {
+                        const channel = adminMusic?.channels.find((item) => item.id === track.channel_id)
+                        const playable = Boolean(track.audio_url || track.storage_path)
+                        return (
+                          <div className="admin-track-row" key={track.id}>
+                            <div className="admin-track-main">
+                              <span className={playable ? 'audio-dot ready' : 'audio-dot'}></span>
+                              <div>
+                                <strong>{track.title}</strong>
+                                <small>
+                                  {(track.track_code ?? 'No code') + ' · ' + (channel?.name ?? 'Unknown channel')}
+                                  {track.bpm ? ' · ' + track.bpm + ' BPM' : ''}
+                                  {track.musical_key ? ' · ' + track.musical_key : ''}
+                                </small>
+                              </div>
+                            </div>
+                            <div className="admin-track-actions">
+                              <span>{playable ? 'Audio ready' : 'No audio yet'}</span>
+                              <button
+                                onClick={() => {
+                                  const next = window.prompt(
+                                    'Audio URL or Supabase storage path. Leave blank to keep current value.',
+                                    track.audio_url || track.storage_path || ''
+                                  )
+                                  if (next === null || !next.trim()) return
+                                  const value = next.trim()
+                                  void patchAdminMusic(
+                                    'track',
+                                    track.id,
+                                    value.startsWith('http')
+                                      ? { audio_url: value, storage_path: null }
+                                      : { storage_path: value, audio_url: null }
+                                  )
+                                }}
+                              >
+                                Set audio
+                              </button>
+                              <button
+                                className={track.active !== false ? 'toggle-active on' : 'toggle-active'}
+                                onClick={() => void patchAdminMusic('track', track.id, { active: track.active === false })}
+                                disabled={adminMusicLoading}
+                              >
+                                {track.active === false ? 'Hidden' : 'Active'}
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              </div>
             </section>
 
             <section className="admin-section">
