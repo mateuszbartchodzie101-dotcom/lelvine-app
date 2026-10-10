@@ -75,6 +75,38 @@ type AdminCustomer = {
   unpaired_devices: number
 }
 
+type AdminBusiness = {
+  generated_at: string
+  metrics: {
+    mrr_eur: number
+    active_hotels: number
+    trialing: number
+    past_due: number
+    cancel_scheduled: number
+    canceled_total: number
+    churn_rate_percent: number
+    org_growth_percent: number
+    new_hotels_this_month: number
+    new_subscriptions_this_month: number
+    trials_started_this_month: number
+    zones: number
+    locations: number
+    players: number
+    avg_zones_per_active_hotel: number
+    avg_players_per_active_hotel: number
+  }
+  plan_mix: {
+    essence: number
+    signature: number
+    premium: number
+  }
+  monthly_growth: Array<{
+    label: string
+    new_organizations: number
+    new_subscriptions: number
+  }>
+}
+
 type AdminHealthAlert = {
   id: string
   kind: 'billing' | 'player' | 'playback' | string
@@ -233,6 +265,8 @@ function DashboardApp() {
   const [adminHealthPriority, setAdminHealthPriority] = useState('all')
   const [adminHealthKind, setAdminHealthKind] = useState('all')
   const [adminTestEmailLoading, setAdminTestEmailLoading] = useState(false)
+  const [adminBusiness, setAdminBusiness] = useState<AdminBusiness | null>(null)
+  const [adminBusinessLoading, setAdminBusinessLoading] = useState(false)
   const [adminMusicChannelFilter, setAdminMusicChannelFilter] = useState('all')
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelMood, setNewChannelMood] = useState('')
@@ -290,7 +324,37 @@ function DashboardApp() {
     void loadAdminMusic()
     void loadAdminActivity()
     void loadAdminHealth()
+    void loadAdminBusiness()
   }, [session, isAdminPath])
+
+  async function loadAdminBusiness() {
+    if (!session) return
+
+    setAdminBusinessLoading(true)
+
+    try {
+      const response = await fetch(
+        'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/admin/business',
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      const result = await response.json() as AdminBusiness & { error?: string }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not load business dashboard.')
+      }
+
+      setAdminBusiness(result)
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Could not load business dashboard.')
+    } finally {
+      setAdminBusinessLoading(false)
+    }
+  }
 
   async function sendAdminTestEmail() {
     if (!session) return
@@ -1390,6 +1454,104 @@ function DashboardApp() {
               <article><span>Subscriptions</span><strong>{adminSummary.metrics.active_subscriptions}</strong><small>{adminSummary.metrics.trialing} trialing</small></article>
               <article><span>Est. MRR</span><strong>€{adminSummary.metrics.mrr_eur}</strong><small>Based on active test plans</small></article>
               <article><span>Players online</span><strong>{adminSummary.metrics.online_devices}/{adminSummary.metrics.devices}</strong><small>{adminSummary.metrics.offline_devices} offline · {adminSummary.metrics.unpaired_devices} unpaired</small></article>
+            </section>
+
+            <section className="admin-section admin-business-dashboard" id="admin-business-dashboard">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Business Overview</div>
+                  <h2>Growth & revenue</h2>
+                  <p>Commercial health of LELVINE across hotels, subscriptions and usage.</p>
+                </div>
+                <button onClick={() => void loadAdminBusiness()} disabled={adminBusinessLoading}>
+                  {adminBusinessLoading ? 'Refreshing…' : 'Refresh business'}
+                </button>
+              </div>
+
+              <div className="admin-business-primary">
+                <article>
+                  <span>MRR</span>
+                  <strong>€{adminBusiness?.metrics.mrr_eur ?? 0}</strong>
+                  <small>Active paid subscriptions</small>
+                </article>
+                <article>
+                  <span>Active hotels</span>
+                  <strong>{adminBusiness?.metrics.active_hotels ?? 0}</strong>
+                  <small>{adminBusiness?.metrics.new_hotels_this_month ?? 0} new this month</small>
+                </article>
+                <article>
+                  <span>Growth</span>
+                  <strong>{adminBusiness?.metrics.org_growth_percent ?? 0}%</strong>
+                  <small>Hotels vs previous month</small>
+                </article>
+                <article>
+                  <span>Churn</span>
+                  <strong>{adminBusiness?.metrics.churn_rate_percent ?? 0}%</strong>
+                  <small>Current month estimate</small>
+                </article>
+              </div>
+
+              <div className="admin-business-secondary">
+                <article><span>Trials</span><strong>{adminBusiness?.metrics.trialing ?? 0}</strong><small>{adminBusiness?.metrics.trials_started_this_month ?? 0} started this month</small></article>
+                <article><span>Past due</span><strong>{adminBusiness?.metrics.past_due ?? 0}</strong><small>Billing attention</small></article>
+                <article><span>Cancel scheduled</span><strong>{adminBusiness?.metrics.cancel_scheduled ?? 0}</strong><small>At period end</small></article>
+                <article><span>Locations</span><strong>{adminBusiness?.metrics.locations ?? 0}</strong><small>Total properties</small></article>
+                <article><span>Zones</span><strong>{adminBusiness?.metrics.zones ?? 0}</strong><small>{adminBusiness?.metrics.avg_zones_per_active_hotel ?? 0} avg / active hotel</small></article>
+                <article><span>Players</span><strong>{adminBusiness?.metrics.players ?? 0}</strong><small>{adminBusiness?.metrics.avg_players_per_active_hotel ?? 0} avg / active hotel</small></article>
+              </div>
+
+              <div className="admin-business-grid">
+                <div className="admin-business-panel">
+                  <div className="admin-business-panel-head">
+                    <strong>Plan mix</strong>
+                    <span>Live subscriptions</span>
+                  </div>
+                  <div className="admin-plan-mix">
+                    <div><span>Essence</span><strong>{adminBusiness?.plan_mix.essence ?? 0}</strong></div>
+                    <div><span>Signature</span><strong>{adminBusiness?.plan_mix.signature ?? 0}</strong></div>
+                    <div><span>Premium</span><strong>{adminBusiness?.plan_mix.premium ?? 0}</strong></div>
+                  </div>
+                </div>
+
+                <div className="admin-business-panel">
+                  <div className="admin-business-panel-head">
+                    <strong>Last 6 months</strong>
+                    <span>New hotels / subscriptions</span>
+                  </div>
+                  <div className="admin-growth-bars">
+                    {(adminBusiness?.monthly_growth ?? []).map((month) => {
+                      const maxValue = Math.max(
+                        1,
+                        ...(adminBusiness?.monthly_growth ?? []).flatMap((item) => [
+                          item.new_organizations,
+                          item.new_subscriptions,
+                        ])
+                      )
+                      return (
+                        <div className="admin-growth-month" key={month.label}>
+                          <div className="admin-growth-columns">
+                            <span
+                              className="hotel-bar"
+                              style={{ height: Math.max(6, (month.new_organizations / maxValue) * 72) + 'px' }}
+                              title={month.new_organizations + ' hotels'}
+                            />
+                            <span
+                              className="subscription-bar"
+                              style={{ height: Math.max(6, (month.new_subscriptions / maxValue) * 72) + 'px' }}
+                              title={month.new_subscriptions + ' subscriptions'}
+                            />
+                          </div>
+                          <small>{month.label}</small>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="admin-growth-legend">
+                    <span><i className="hotel"></i>Hotels</span>
+                    <span><i className="subscription"></i>Subscriptions</span>
+                  </div>
+                </div>
+              </div>
             </section>
 
             <section className="admin-section admin-music-library" id="admin-music-library">
