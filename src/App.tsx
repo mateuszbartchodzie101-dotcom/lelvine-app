@@ -151,6 +151,7 @@ function DashboardApp() {
   const [adminSummary, setAdminSummary] = useState<AdminSummary | null>(null)
   const [adminLoading, setAdminLoading] = useState(false)
   const [adminError, setAdminError] = useState('')
+  const [selectedAdminCustomerId, setSelectedAdminCustomerId] = useState<string | null>(null)
   const isAdminPath = window.location.pathname.startsWith('/admin')
 
   const [orgName, setOrgName] = useState('')
@@ -916,6 +917,13 @@ function DashboardApp() {
 
   if (authLoading && !session) return <main className="loading">LELVINE</main>
 
+  const selectedAdminCustomer =
+    adminSummary?.customers.find((customer) => customer.id === selectedAdminCustomerId) ?? null
+  const selectedAdminDevices =
+    selectedAdminCustomer && adminSummary
+      ? adminSummary.devices.filter((device) => device.organization_id === selectedAdminCustomer.id)
+      : []
+
   if (session && isAdminPath) {
     return (
       <main className="admin-shell">
@@ -988,7 +996,11 @@ function DashboardApp() {
                   </thead>
                   <tbody>
                     {adminSummary.customers.map((customer) => (
-                      <tr key={customer.id}>
+                      <tr
+                        key={customer.id}
+                        className="admin-customer-row"
+                        onClick={() => setSelectedAdminCustomerId(customer.id)}
+                      >
                         <td><strong>{customer.name}</strong></td>
                         <td className="admin-plan">{customer.subscription?.plan ?? '—'}</td>
                         <td>
@@ -1013,6 +1025,74 @@ function DashboardApp() {
                 </table>
               </div>
             </section>
+
+            {selectedAdminCustomer && (
+              <section className="admin-customer-detail">
+                <div className="admin-customer-detail-head">
+                  <div>
+                    <div className="eyebrow">Customer detail</div>
+                    <h2>{selectedAdminCustomer.name}</h2>
+                    <p>Organization ID: {selectedAdminCustomer.id}</p>
+                  </div>
+                  <button onClick={() => setSelectedAdminCustomerId(null)}>Close</button>
+                </div>
+
+                <div className="admin-customer-detail-grid">
+                  <article>
+                    <span>Plan</span>
+                    <strong>{selectedAdminCustomer.subscription?.plan ?? 'No plan'}</strong>
+                    <small>{selectedAdminCustomer.subscription?.status ?? 'No subscription'}</small>
+                  </article>
+                  <article>
+                    <span>Locations</span>
+                    <strong>{selectedAdminCustomer.locations}</strong>
+                    <small>Properties</small>
+                  </article>
+                  <article>
+                    <span>Zones</span>
+                    <strong>{selectedAdminCustomer.zones}</strong>
+                    <small>Configured spaces</small>
+                  </article>
+                  <article>
+                    <span>Players</span>
+                    <strong>{selectedAdminCustomer.devices}</strong>
+                    <small>{selectedAdminCustomer.online_devices} online</small>
+                  </article>
+                </div>
+
+                <div className="admin-customer-subscription">
+                  <div><span>Status</span><strong>{selectedAdminCustomer.subscription?.status ?? '—'}</strong></div>
+                  <div><span>Trial ends</span><strong>{selectedAdminCustomer.subscription?.trial_end ? new Date(selectedAdminCustomer.subscription.trial_end).toLocaleDateString() : '—'}</strong></div>
+                  <div><span>Period ends</span><strong>{selectedAdminCustomer.subscription?.current_period_end ? new Date(selectedAdminCustomer.subscription.current_period_end).toLocaleDateString() : '—'}</strong></div>
+                  <div><span>Cancel scheduled</span><strong>{selectedAdminCustomer.subscription?.cancel_at_period_end ? 'Yes' : 'No'}</strong></div>
+                </div>
+
+                <div className="admin-customer-players">
+                  <div className="admin-customer-players-head">
+                    <strong>Players</strong>
+                    <span>{selectedAdminDevices.length} devices</span>
+                  </div>
+
+                  {selectedAdminDevices.length === 0 ? (
+                    <div className="empty-state">This customer has no player devices yet.</div>
+                  ) : (
+                    selectedAdminDevices.map((device) => (
+                      <div className="admin-customer-player-row" key={device.device_id}>
+                        <div>
+                          <span className={'status-dot ' + device.device_status}></span>
+                          <strong>{device.device_name}</strong>
+                          <small>{device.location_name} · {device.zone_name}</small>
+                        </div>
+                        <div>
+                          <span>{device.current_channel_name ?? 'No channel'}</span>
+                          <strong>{device.device_status}</strong>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+            )}
 
             <section className="admin-section">
               <div className="section-heading">
