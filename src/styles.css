@@ -589,3 +589,28 @@ select{appearance:auto}
 }
 .admin-upload-audio:has(input:disabled){opacity:.45;cursor:not-allowed}
 .admin-upload-audio:has(input:disabled) input{cursor:not-allowed}
+
+
+/* ADMIN SEARCH & FILTERS */
+.admin-customer-filters,.admin-player-search{
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0
+}
+.admin-customer-filters input,.admin-customer-filters select,.admin-player-search input{
+  border:1px solid #332e2a;background:#0b0b0b;color:#d8d0c8;padding:10px 11px;font:inherit
+}
+.admin-customer-filters input{min-width:230px;flex:1}
+.admin-customer-filters select{min-width:150px}
+.admin-customer-filters button{
+  border:1px solid #40372f;background:transparent;color:#b6a493;padding:10px 12px;
+  font-size:9px;text-transform:uppercase;letter-spacing:.1em;cursor:pointer
+}
+.admin-filter-count,.admin-player-search span{
+  font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#756e67
+}
+.admin-player-search{justify-content:space-between}
+.admin-player-search input{min-width:300px;flex:1;max-width:540px}
+
+@media(max-width:700px){
+  .admin-customer-filters,.admin-player-search{flex-direction:column;align-items:stretch}
+  .admin-customer-filters input,.admin-customer-filters select,.admin-player-search input{min-width:0;max-width:none;width:100%}
+}
