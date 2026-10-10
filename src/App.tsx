@@ -268,6 +268,7 @@ function DashboardApp() {
   const [adminBusiness, setAdminBusiness] = useState<AdminBusiness | null>(null)
   const [adminBusinessLoading, setAdminBusinessLoading] = useState(false)
   const [adminMusicChannelFilter, setAdminMusicChannelFilter] = useState('all')
+  const [adminTracksExpanded, setAdminTracksExpanded] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelMood, setNewChannelMood] = useState('')
   const [newTrack, setNewTrack] = useState<AdminTrackDraft>({
@@ -1622,14 +1623,23 @@ function DashboardApp() {
                 </div>
 
                 <div className="admin-music-panel wide">
-                  <div className="admin-music-panel-head">
+                  <div className="admin-music-panel-head admin-tracks-head">
                     <div>
                       <span>Tracks</span>
                       <strong>{adminMusic?.tracks.length ?? 0}</strong>
                     </div>
-                    <small>
-                      {(adminMusic?.tracks ?? []).filter((track) => Boolean(track.audio_url || track.storage_path)).length} with audio
-                    </small>
+                    <div className="admin-tracks-head-actions">
+                      <small>
+                        {(adminMusic?.tracks ?? []).filter((track) => Boolean(track.audio_url || track.storage_path)).length} with audio
+                      </small>
+                      <button
+                        type="button"
+                        className="admin-tracks-toggle"
+                        onClick={() => setAdminTracksExpanded((value) => !value)}
+                      >
+                        {adminTracksExpanded ? 'Hide tracks' : 'Show tracks'}
+                      </button>
+                    </div>
                   </div>
 
                   <form className="admin-track-form" onSubmit={createAdminTrack}>
@@ -1686,7 +1696,9 @@ function DashboardApp() {
                     <button disabled={adminMusicLoading}>Add track</button>
                   </form>
 
-                  <div className="admin-track-list">
+                  {adminTracksExpanded ? (
+                    <div className="admin-track-list admin-track-list-scroll">
+
                     {(adminMusic?.tracks ?? [])
                       .filter((track) => adminMusicChannelFilter === 'all' || track.channel_id === adminMusicChannelFilter)
                       .map((track) => {
@@ -1756,7 +1768,18 @@ function DashboardApp() {
                           </div>
                         )
                       })}
-                  </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-tracks-collapsed"
+                      onClick={() => setAdminTracksExpanded(true)}
+                    >
+                      <span>Track library collapsed</span>
+                      <strong>{adminMusic?.tracks.length ?? 0} tracks</strong>
+                      <small>Click to expand the library</small>
+                    </button>
+                  )}
                 </div>
               </div>
             </section>
