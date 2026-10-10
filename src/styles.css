@@ -576,3 +576,16 @@ select{appearance:auto}
   .admin-track-row{align-items:flex-start;flex-direction:column}
   .admin-track-actions{justify-content:flex-start}
 }
+
+
+/* ADMIN AUDIO UPLOAD */
+.admin-upload-audio{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid #40372f;background:transparent;color:#b6a493;padding:9px 11px;
+  font-size:9px;text-transform:uppercase;letter-spacing:.1em;cursor:pointer
+}
+.admin-upload-audio input{
+  position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer
+}
+.admin-upload-audio:has(input:disabled){opacity:.45;cursor:not-allowed}
+.admin-upload-audio:has(input:disabled) input{cursor:not-allowed}
