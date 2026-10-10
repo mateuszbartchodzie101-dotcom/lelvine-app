@@ -75,6 +75,29 @@ type AdminCustomer = {
   unpaired_devices: number
 }
 
+type AdminHealthAlert = {
+  id: string
+  kind: 'billing' | 'player' | 'playback' | string
+  priority: 'critical' | 'high' | 'medium' | 'low' | string
+  title: string
+  detail: string
+  organization_id: string | null
+  device_id: string | null
+  created_at: string
+}
+
+type AdminHealth = {
+  generated_at: string
+  counts: {
+    total: number
+    critical: number
+    high: number
+    medium: number
+    low: number
+  }
+  alerts: AdminHealthAlert[]
+}
+
 type AdminActivityEvent = {
   id: string
   type: 'subscription' | 'music' | 'player' | 'error' | string
@@ -205,6 +228,10 @@ function DashboardApp() {
   const [adminActivityLoading, setAdminActivityLoading] = useState(false)
   const [adminActivitySearch, setAdminActivitySearch] = useState('')
   const [adminActivityType, setAdminActivityType] = useState('all')
+  const [adminHealth, setAdminHealth] = useState<AdminHealth | null>(null)
+  const [adminHealthLoading, setAdminHealthLoading] = useState(false)
+  const [adminHealthPriority, setAdminHealthPriority] = useState('all')
+  const [adminHealthKind, setAdminHealthKind] = useState('all')
   const [adminMusicChannelFilter, setAdminMusicChannelFilter] = useState('all')
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelMood, setNewChannelMood] = useState('')
@@ -261,7 +288,37 @@ function DashboardApp() {
     void loadAdminSummary()
     void loadAdminMusic()
     void loadAdminActivity()
+    void loadAdminHealth()
   }, [session, isAdminPath])
+
+  async function loadAdminHealth() {
+    if (!session) return
+
+    setAdminHealthLoading(true)
+
+    try {
+      const response = await fetch(
+        'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/admin/health',
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      const result = await response.json() as AdminHealth & { error?: string }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not load health monitoring.')
+      }
+
+      setAdminHealth(result)
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Could not load health monitoring.')
+    } finally {
+      setAdminHealthLoading(false)
+    }
+  }
 
   async function loadAdminActivity() {
     if (!session) return
@@ -1230,6 +1287,12 @@ function DashboardApp() {
     ].some((value) => value.toLowerCase().includes(search))
   })
 
+  const filteredAdminHealth = (adminHealth?.alerts ?? []).filter((alert) => {
+    const matchesPriority = adminHealthPriority === 'all' || alert.priority === adminHealthPriority
+    const matchesKind = adminHealthKind === 'all' || alert.kind === adminHealthKind
+    return matchesPriority && matchesKind
+  })
+
   const filteredAdminActivity = (adminActivity?.events ?? []).filter((event) => {
     const search = adminActivitySearch.trim().toLowerCase()
     const matchesSearch =
@@ -1714,6 +1777,66 @@ function DashboardApp() {
                 </div>
               </section>
             )}
+
+            <section className="admin-section admin-health-monitor" id="admin-health-monitor">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Health Monitoring</div>
+                  <h2>Admin alerts</h2>
+                  <p>Current player, playback and billing issues that need attention.</p>
+                </div>
+                <button onClick={() => void loadAdminHealth()} disabled={adminHealthLoading}>
+                  {adminHealthLoading ? 'Refreshing…' : 'Refresh health'}
+                </button>
+              </div>
+
+              <div className="admin-health-metrics">
+                <article className="critical"><span>Critical</span><strong>{adminHealth?.counts.critical ?? 0}</strong></article>
+                <article className="high"><span>High</span><strong>{adminHealth?.counts.high ?? 0}</strong></article>
+                <article className="medium"><span>Medium</span><strong>{adminHealth?.counts.medium ?? 0}</strong></article>
+                <article><span>Total alerts</span><strong>{adminHealth?.counts.total ?? 0}</strong></article>
+              </div>
+
+              <div className="admin-health-filters">
+                <select value={adminHealthPriority} onChange={(e) => setAdminHealthPriority(e.target.value)}>
+                  <option value="all">All priorities</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+                <select value={adminHealthKind} onChange={(e) => setAdminHealthKind(e.target.value)}>
+                  <option value="all">All types</option>
+                  <option value="player">Players</option>
+                  <option value="playback">Playback</option>
+                  <option value="billing">Billing</option>
+                </select>
+                <span>{filteredAdminHealth.length} visible</span>
+              </div>
+
+              <div className="admin-health-list">
+                {filteredAdminHealth.length === 0 ? (
+                  <div className="admin-health-clear">
+                    <strong>No active issues</strong>
+                    <span>Platform health currently looks good.</span>
+                  </div>
+                ) : (
+                  filteredAdminHealth.map((alert) => (
+                    <article className={'admin-health-alert ' + alert.priority} key={alert.id}>
+                      <div className="admin-health-priority">{alert.priority}</div>
+                      <div className="admin-health-copy">
+                        <strong>{alert.title}</strong>
+                        <span>{alert.detail}</span>
+                      </div>
+                      <div className="admin-health-meta">
+                        <span>{alert.kind}</span>
+                        <time>{new Date(alert.created_at).toLocaleString()}</time>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
 
             <section className="admin-section admin-activity-log" id="admin-activity-log">
               <div className="section-heading">
