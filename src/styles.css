@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500&family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500&display=swap');
 
 :root{font-family:'DM Sans',sans-serif;color:#f4efe8;background:#090909}
 *{box-sizing:border-box}
@@ -1166,4 +1166,44 @@ select{appearance:auto}
   .admin-business-primary article,
   .admin-business-secondary article,
   .admin-health-metrics article{border-radius:13px}
+}
+
+
+/* LELVINE ADMIN TYPOGRAPHY */
+.admin-shell{
+  font-family:'Inter',sans-serif;
+}
+.admin-shell .brand,
+.admin-shell .admin-hero h1,
+.admin-shell .section-heading h2,
+.admin-shell .admin-metrics strong,
+.admin-shell .admin-business-primary strong,
+.admin-shell .admin-business-secondary strong,
+.admin-shell .admin-plan-mix strong,
+.admin-shell .admin-music-panel-head strong,
+.admin-shell .admin-device-card h3,
+.admin-shell .admin-customer-detail-head h2,
+.admin-shell .admin-customer-detail-grid strong,
+.admin-shell .admin-health-metrics strong{
+  font-family:'Cormorant Garamond',serif;
+  font-weight:500;
+}
+.admin-shell .admin-hero h1{
+  letter-spacing:-.045em;
+}
+.admin-shell .section-heading h2{
+  letter-spacing:-.03em;
+}
+.admin-shell .admin-metrics strong,
+.admin-shell .admin-business-primary strong{
+  letter-spacing:-.035em;
+}
+.admin-shell button,
+.admin-shell input,
+.admin-shell select,
+.admin-shell table,
+.admin-shell small,
+.admin-shell p,
+.admin-shell span{
+  font-family:'Inter',sans-serif;
 }
