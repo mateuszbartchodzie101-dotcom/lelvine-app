@@ -508,3 +508,19 @@ select{appearance:auto}
   .admin-customer-detail-head,.admin-customer-player-row{flex-direction:column;align-items:flex-start}
   .admin-customer-player-row>div:last-child{align-items:flex-start}
 }
+
+
+/* ADMIN ACTIONS */
+.admin-customer-detail-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.admin-customer-detail-actions button{border:1px solid #40372f;background:transparent;color:#b6a493;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:.1em;cursor:pointer}
+.admin-customer-detail-actions button:disabled{opacity:.45;cursor:not-allowed}
+.admin-customer-alerts{margin-top:14px;border:1px solid #2b2724;background:#0a0a0a}
+.admin-customer-alert{padding:11px 14px;border-top:1px solid #24211e;font-size:10px;line-height:1.5}
+.admin-customer-alert.warning{color:#c3a080}
+.admin-customer-alert.critical{color:#d18d82}
+.admin-customer-alert.clear{color:#9fb092}
+#admin-player-health{scroll-margin-top:24px}
+
+@media(max-width:700px){
+  .admin-customer-detail-actions{justify-content:flex-start}
+}
