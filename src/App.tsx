@@ -565,10 +565,12 @@ function DashboardApp() {
         'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/create-checkout-session',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
           body: JSON.stringify({
             plan,
-            user_id: session.user.id,
             organization_id: organization.id,
           }),
         }
