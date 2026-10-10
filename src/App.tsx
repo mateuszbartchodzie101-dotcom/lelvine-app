@@ -364,6 +364,8 @@ function DashboardApp() {
   const advancedSchedulingEnabled =
     subscriptionUsable &&
     (subscription?.plan === 'signature' || subscription?.plan === 'premium')
+  const premiumFeaturesEnabled =
+    subscriptionUsable && subscription?.plan === 'premium'
 
   async function createZone(e: FormEvent) {
     e.preventDefault()
@@ -1108,6 +1110,52 @@ function DashboardApp() {
                       ))
                     )}
                   </article>
+                </div>
+              )}
+            </section>
+
+            <section className="premium-services">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Premium Service</div>
+                  <h2>Sound Concierge</h2>
+                </div>
+                <p>Priority music adjustments and tailored seasonal sound support for premium hospitality spaces.</p>
+              </div>
+
+              {premiumFeaturesEnabled ? (
+                <div className="concierge-panel active">
+                  <div>
+                    <span className="feature-lock-badge">Premium</span>
+                    <h3>Your Sound Concierge is active</h3>
+                    <p>
+                      Request priority adjustments, seasonal updates and tailored recommendations for your spaces.
+                    </p>
+                  </div>
+                  <a
+                    className="concierge-action"
+                    href="mailto:contact@lelvine.com?subject=LELVINE%20Sound%20Concierge"
+                  >
+                    Contact Sound Concierge
+                  </a>
+                </div>
+              ) : (
+                <div className="feature-lock">
+                  <div>
+                    <span className="feature-lock-badge">Premium only</span>
+                    <h3>Sound Concierge</h3>
+                    <p>
+                      Get priority adjustments, seasonal sound updates and more tailored music support for your property.
+                    </p>
+                  </div>
+                  <div className="feature-lock-copy">
+                    <strong>Available on Premium.</strong>
+                    <span>
+                      {subscription?.plan
+                        ? 'Your current plan does not include Sound Concierge.'
+                        : 'Start Premium to unlock this service.'}
+                    </span>
+                  </div>
                 </div>
               )}
             </section>
