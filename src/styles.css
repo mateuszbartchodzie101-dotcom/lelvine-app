@@ -336,3 +336,16 @@ select{appearance:auto}
   .onboarding-head,.onboarding-next{flex-direction:column;align-items:flex-start}
   .onboarding-steps{grid-template-columns:1fr}
 }
+
+
+/* DASHBOARD NAVIGATION */
+.dashboard-nav{position:sticky;top:0;z-index:20;margin:0 -2px 24px;padding:10px 12px;border:1px solid #2d2925;background:rgba(10,10,10,.92);backdrop-filter:blur(14px);display:flex;gap:7px;align-items:center;overflow-x:auto}
+.dashboard-nav button,.dashboard-nav a{border:1px solid transparent;background:transparent;color:#8f8780;text-decoration:none;padding:9px 11px;font-size:9px;text-transform:uppercase;letter-spacing:.11em;white-space:nowrap;cursor:pointer}
+.dashboard-nav button:hover,.dashboard-nav a:hover{border-color:#40372f;color:#ddd2c6;background:#13100e}
+.dashboard-nav a{margin-left:auto;border-color:#5c4b3e;color:#c7ad92}
+#dashboard-schedule,#dashboard-music{scroll-margin-top:76px}
+
+@media(max-width:900px){
+  .dashboard-nav{top:0}
+  .dashboard-nav a{margin-left:0}
+}
