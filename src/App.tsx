@@ -50,6 +50,46 @@ type SubscriptionRecord = {
   cancel_at_period_end: boolean
 }
 
+type AdminSubscription = {
+  id: string
+  organization_id: string | null
+  plan: 'essence' | 'signature' | 'premium' | null
+  status: string
+  trial_end: string | null
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+  created_at: string
+}
+
+type AdminCustomer = {
+  id: string
+  name: string
+  created_at: string
+  subscription: AdminSubscription | null
+  locations: number
+  zones: number
+  devices: number
+  online_devices: number
+  offline_devices: number
+  unpaired_devices: number
+}
+
+type AdminSummary = {
+  generated_at: string
+  metrics: {
+    organizations: number
+    active_subscriptions: number
+    trialing: number
+    mrr_eur: number
+    devices: number
+    online_devices: number
+    offline_devices: number
+    unpaired_devices: number
+  }
+  customers: AdminCustomer[]
+  devices: PlayerDevice[]
+}
+
 type PlayerDevice = {
   device_id: string
   device_code: string
@@ -108,6 +148,10 @@ function DashboardApp() {
   const [dataMsg, setDataMsg] = useState('')
   const [subscription, setSubscription] = useState<SubscriptionRecord | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [adminSummary, setAdminSummary] = useState<AdminSummary | null>(null)
+  const [adminLoading, setAdminLoading] = useState(false)
+  const [adminError, setAdminError] = useState('')
+  const isAdminPath = window.location.pathname.startsWith('/admin')
 
   const [orgName, setOrgName] = useState('')
   const [locationName, setLocationName] = useState('')
@@ -142,6 +186,43 @@ function DashboardApp() {
 
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!session || !isAdminPath) return
+
+    void loadAdminSummary()
+  }, [session, isAdminPath])
+
+  async function loadAdminSummary() {
+    if (!session) return
+
+    setAdminLoading(true)
+    setAdminError('')
+
+    try {
+      const response = await fetch(
+        'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/admin/summary',
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      const result = await response.json() as AdminSummary & { error?: string }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not load admin dashboard.')
+      }
+
+      setAdminSummary(result)
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Could not load admin dashboard.')
+      setAdminSummary(null)
+    } finally {
+      setAdminLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!session) {
@@ -834,6 +915,148 @@ function DashboardApp() {
   const selectedTracks = selectedChannel ? (tracksByChannel[selectedChannel.id] ?? []) : []
 
   if (authLoading && !session) return <main className="loading">LELVINE</main>
+
+  if (session && isAdminPath) {
+    return (
+      <main className="admin-shell">
+        <header className="admin-header">
+          <div className="brand">LELVINE<span>PLATFORM ADMIN</span></div>
+          <div className="admin-header-actions">
+            <button onClick={() => { window.location.href = '/' }}>Client dashboard</button>
+            <div className="header-actions">
+            {session.user.email?.toLowerCase() === 'contact@lelvine.com' && (
+              <button onClick={() => { window.location.href = '/admin' }}>Admin</button>
+            )}
+            <button onClick={() => supabase.auth.signOut()}>Sign out</button>
+          </div>
+          </div>
+        </header>
+
+        <section className="admin-hero">
+          <div>
+            <div className="eyebrow">LELVINE Operations</div>
+            <h1>Platform overview</h1>
+            <p>Customers, subscriptions and playback network in one place.</p>
+          </div>
+          <button className="billing-manage" onClick={() => void loadAdminSummary()} disabled={adminLoading}>
+            {adminLoading ? 'Refreshing…' : 'Refresh data'}
+          </button>
+        </section>
+
+        {adminLoading && !adminSummary && <div className="admin-loading">Loading platform data…</div>}
+
+        {adminError && (
+          <section className="admin-access-error">
+            <strong>Admin access unavailable</strong>
+            <p>{adminError}</p>
+            <small>
+              This page is protected by the LELVINE API. Only configured platform administrators can access customer data.
+            </small>
+          </section>
+        )}
+
+        {adminSummary && (
+          <>
+            <section className="admin-metrics">
+              <article><span>Customers</span><strong>{adminSummary.metrics.organizations}</strong><small>Organizations</small></article>
+              <article><span>Subscriptions</span><strong>{adminSummary.metrics.active_subscriptions}</strong><small>{adminSummary.metrics.trialing} trialing</small></article>
+              <article><span>Est. MRR</span><strong>€{adminSummary.metrics.mrr_eur}</strong><small>Based on active test plans</small></article>
+              <article><span>Players online</span><strong>{adminSummary.metrics.online_devices}/{adminSummary.metrics.devices}</strong><small>{adminSummary.metrics.offline_devices} offline · {adminSummary.metrics.unpaired_devices} unpaired</small></article>
+            </section>
+
+            <section className="admin-section">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Customers</div>
+                  <h2>Hotels & organizations</h2>
+                </div>
+                <p>{adminSummary.customers.length} total organizations</p>
+              </div>
+
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Organization</th>
+                      <th>Plan</th>
+                      <th>Status</th>
+                      <th>Locations</th>
+                      <th>Zones</th>
+                      <th>Players</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminSummary.customers.map((customer) => (
+                      <tr key={customer.id}>
+                        <td><strong>{customer.name}</strong></td>
+                        <td className="admin-plan">{customer.subscription?.plan ?? '—'}</td>
+                        <td>
+                          <span className={'admin-status ' + (customer.subscription?.status ?? 'none')}>
+                            {customer.subscription?.status ?? 'no plan'}
+                          </span>
+                        </td>
+                        <td>{customer.locations}</td>
+                        <td>{customer.zones}</td>
+                        <td>
+                          {customer.devices}
+                          <small className="admin-device-detail">
+                            {customer.online_devices} online
+                            {customer.offline_devices > 0 ? ' · ' + customer.offline_devices + ' offline' : ''}
+                            {customer.unpaired_devices > 0 ? ' · ' + customer.unpaired_devices + ' unpaired' : ''}
+                          </small>
+                        </td>
+                        <td>{new Date(customer.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="admin-section">
+              <div className="section-heading">
+                <div>
+                  <div className="eyebrow">Playback Network</div>
+                  <h2>Player health</h2>
+                </div>
+                <p>Live status from connected hotel players.</p>
+              </div>
+
+              <div className="admin-device-grid">
+                {adminSummary.devices.length === 0 ? (
+                  <div className="empty-state">No player devices have been created yet.</div>
+                ) : (
+                  adminSummary.devices.map((device) => (
+                    <article className="admin-device-card" key={device.device_id}>
+                      <div className="admin-device-top">
+                        <div>
+                          <span className={'status-dot ' + device.device_status}></span>
+                          <strong>{device.device_name}</strong>
+                        </div>
+                        <span>{device.device_status}</span>
+                      </div>
+                      <h3>{device.organization_name}</h3>
+                      <p>{device.location_name} · {device.zone_name}</p>
+                      <div className="admin-device-meta">
+                        <div><span>Playback</span><strong>{device.playback_state}</strong></div>
+                        <div><span>Channel</span><strong>{device.current_channel_name ?? '—'}</strong></div>
+                        <div><span>Last seen</span><strong>{device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : 'Never'}</strong></div>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <div className="admin-generated">
+              Last refreshed {new Date(adminSummary.generated_at).toLocaleString()}
+            </div>
+          </>
+        )}
+      </main>
+    )
+  }
 
   if (session) {
     return (
