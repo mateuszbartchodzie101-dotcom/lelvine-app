@@ -152,6 +152,7 @@ function DashboardApp() {
   const [adminLoading, setAdminLoading] = useState(false)
   const [adminError, setAdminError] = useState('')
   const [selectedAdminCustomerId, setSelectedAdminCustomerId] = useState<string | null>(null)
+  const [adminActionLoading, setAdminActionLoading] = useState<string | null>(null)
   const isAdminPath = window.location.pathname.startsWith('/admin')
 
   const [orgName, setOrgName] = useState('')
@@ -193,6 +194,39 @@ function DashboardApp() {
 
     void loadAdminSummary()
   }, [session, isAdminPath])
+
+  async function openAdminCustomerPortal(organizationId: string) {
+    if (!session) return
+
+    setAdminActionLoading('portal')
+    setAdminError('')
+
+    try {
+      const response = await fetch(
+        'https://lelvine-api-git.mateusz-bartchodzie101.workers.dev/admin/create-portal-session',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ organization_id: organizationId }),
+        }
+      )
+
+      const result = await response.json() as { url?: string; error?: string }
+
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || 'Could not open customer billing portal.')
+      }
+
+      window.open(result.url, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : 'Could not open customer billing portal.')
+    } finally {
+      setAdminActionLoading(null)
+    }
+  }
 
   async function loadAdminSummary() {
     if (!session) return
@@ -1034,7 +1068,23 @@ function DashboardApp() {
                     <h2>{selectedAdminCustomer.name}</h2>
                     <p>Organization ID: {selectedAdminCustomer.id}</p>
                   </div>
-                  <button onClick={() => setSelectedAdminCustomerId(null)}>Close</button>
+                  <div className="admin-customer-detail-actions">
+                    <button
+                      onClick={() => void openAdminCustomerPortal(selectedAdminCustomer.id)}
+                      disabled={adminActionLoading !== null || !selectedAdminCustomer.subscription}
+                    >
+                      {adminActionLoading === 'portal' ? 'Opening…' : 'Open billing portal'}
+                    </button>
+                    <button onClick={() => void loadAdminSummary()} disabled={adminLoading}>
+                      Refresh
+                    </button>
+                    <button
+                      onClick={() => document.getElementById('admin-player-health')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      View players
+                    </button>
+                                      <button onClick={() => setSelectedAdminCustomerId(null)}>Close</button>
+                  </div>
                 </div>
 
                 <div className="admin-customer-detail-grid">
@@ -1067,6 +1117,35 @@ function DashboardApp() {
                   <div><span>Cancel scheduled</span><strong>{selectedAdminCustomer.subscription?.cancel_at_period_end ? 'Yes' : 'No'}</strong></div>
                 </div>
 
+                <div className="admin-customer-alerts">
+                  <div className="admin-customer-players-head">
+                    <strong>Attention</strong>
+                    <span>
+                      {selectedAdminCustomer.offline_devices + selectedAdminCustomer.unpaired_devices +
+                        (selectedAdminCustomer.subscription ? 0 : 1)} alerts
+                    </span>
+                  </div>
+
+                  {!selectedAdminCustomer.subscription && (
+                    <div className="admin-customer-alert warning">No active subscription is connected to this organization.</div>
+                  )}
+                  {selectedAdminCustomer.offline_devices > 0 && (
+                    <div className="admin-customer-alert critical">
+                      {selectedAdminCustomer.offline_devices} player{selectedAdminCustomer.offline_devices === 1 ? '' : 's'} offline.
+                    </div>
+                  )}
+                  {selectedAdminCustomer.unpaired_devices > 0 && (
+                    <div className="admin-customer-alert warning">
+                      {selectedAdminCustomer.unpaired_devices} player{selectedAdminCustomer.unpaired_devices === 1 ? '' : 's'} not paired.
+                    </div>
+                  )}
+                  {selectedAdminCustomer.subscription &&
+                    selectedAdminCustomer.offline_devices === 0 &&
+                    selectedAdminCustomer.unpaired_devices === 0 && (
+                      <div className="admin-customer-alert clear">No active operational alerts for this customer.</div>
+                    )}
+                </div>
+
                 <div className="admin-customer-players">
                   <div className="admin-customer-players-head">
                     <strong>Players</strong>
@@ -1094,7 +1173,7 @@ function DashboardApp() {
               </section>
             )}
 
-            <section className="admin-section">
+            <section id="admin-player-health" className="admin-section">
               <div className="section-heading">
                 <div>
                   <div className="eyebrow">Playback Network</div>
