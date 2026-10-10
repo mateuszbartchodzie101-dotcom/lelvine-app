@@ -264,3 +264,18 @@ select{appearance:auto}
 @media(max-width:900px){
   .concierge-panel{flex-direction:column;align-items:flex-start}
 }
+
+
+/* MUSIC REFRESH FEATURES */
+.refresh-services{margin:40px 0}
+.refresh-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.refresh-card{border:1px solid #2d2925;background:#0d0d0d;padding:24px;display:flex;flex-direction:column;gap:12px}
+.refresh-card.active{border-color:#665645;background:linear-gradient(155deg,#15110e,#0d0d0d)}
+.refresh-card.locked{opacity:.72}
+.refresh-card h3{font-family:'Playfair Display',serif;font-size:30px;font-weight:400;margin:4px 0 0}
+.refresh-card p{margin:0;color:#8f8881;line-height:1.65}
+.refresh-card>strong{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#b6a493;margin-top:6px}
+
+@media(max-width:900px){
+  .refresh-grid{grid-template-columns:1fr}
+}
