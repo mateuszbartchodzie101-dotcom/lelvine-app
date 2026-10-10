@@ -372,6 +372,55 @@ function DashboardApp() {
   const seasonalUpdatesEnabled =
     subscriptionUsable && subscription?.plan === 'premium'
 
+  const hasChannelAssigned = zones.some((zone) => Boolean(zone.channel_id))
+  const hasPairedPlayer = devices.some((device) => Boolean(device.paired_at))
+  const onboardingCoreSteps = [
+    {
+      key: 'organization',
+      label: 'Create organization',
+      description: 'Set up your hotel or hospitality brand.',
+      done: Boolean(organization),
+      target: 'onboarding-organization',
+    },
+    {
+      key: 'location',
+      label: 'Add location',
+      description: 'Add your first hotel property.',
+      done: locations.length > 0,
+      target: 'onboarding-spaces',
+    },
+    {
+      key: 'zone',
+      label: 'Add zone',
+      description: 'Create a guest-facing space such as Lobby or Spa.',
+      done: zones.length > 0,
+      target: !subscriptionUsable && organization ? 'onboarding-billing' : 'onboarding-spaces',
+    },
+    {
+      key: 'sound',
+      label: 'Choose your sound',
+      description: 'Assign a LELVINE music channel to a zone.',
+      done: hasChannelAssigned,
+      target: 'onboarding-sound',
+    },
+    {
+      key: 'player',
+      label: 'Pair player',
+      description: 'Connect the player that will run music in the space.',
+      done: hasPairedPlayer,
+      target: 'onboarding-player',
+    },
+  ]
+
+  const onboardingDoneCount = onboardingCoreSteps.filter((step) => step.done).length
+  const onboardingComplete = onboardingDoneCount === onboardingCoreSteps.length
+  const onboardingProgress = Math.round((onboardingDoneCount / onboardingCoreSteps.length) * 100)
+  const nextOnboardingStep = onboardingCoreSteps.find((step) => !step.done) ?? null
+
+  function goToOnboardingTarget(target: string) {
+    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   async function createZone(e: FormEvent) {
     e.preventDefault()
     if (!zoneLocationId || !zoneName.trim()) return
@@ -728,8 +777,71 @@ function DashboardApp() {
           <article><strong>{tracks.length}</strong><span>Tracks</span></article>
         </section>
 
+        <section className={onboardingComplete ? 'onboarding-card complete' : 'onboarding-card'}>
+          <div className="onboarding-head">
+            <div>
+              <div className="eyebrow">Getting started</div>
+              <h2>{onboardingComplete ? 'Your LELVINE setup is ready.' : 'Set up your first space.'}</h2>
+              <p>
+                {onboardingComplete
+                  ? 'Your organization, space, sound and player are connected.'
+                  : 'Follow these steps to go from account to music running in your hotel.'}
+              </p>
+            </div>
+            <div className="onboarding-progress-number">{onboardingProgress}%</div>
+          </div>
+
+          <div className="onboarding-progress-track">
+            <span style={{ width: onboardingProgress + '%' }} />
+          </div>
+
+          <div className="onboarding-steps">
+            {onboardingCoreSteps.map((step, index) => (
+              <button
+                type="button"
+                key={step.key}
+                className={step.done ? 'onboarding-step done' : nextOnboardingStep?.key === step.key ? 'onboarding-step current' : 'onboarding-step'}
+                onClick={() => goToOnboardingTarget(step.target)}
+              >
+                <span className="onboarding-step-number">{step.done ? '✓' : index + 1}</span>
+                <span className="onboarding-step-copy">
+                  <strong>{step.label}</strong>
+                  <small>{step.description}</small>
+                </span>
+              </button>
+            ))}
+
+            <div className={onboardingComplete ? 'onboarding-step ready done' : 'onboarding-step ready'}>
+              <span className="onboarding-step-number">{onboardingComplete ? '✓' : 6}</span>
+              <span className="onboarding-step-copy">
+                <strong>Ready</strong>
+                <small>Music is configured for your first space.</small>
+              </span>
+            </div>
+          </div>
+
+          {!onboardingComplete && nextOnboardingStep && (
+            <div className="onboarding-next">
+              <div>
+                <span>Next step</span>
+                <strong>
+                  {nextOnboardingStep.key === 'zone' && !subscriptionUsable
+                    ? 'Choose a plan before adding your first zone'
+                    : nextOnboardingStep.label}
+                </strong>
+              </div>
+              <button
+                className="primary"
+                onClick={() => goToOnboardingTarget(nextOnboardingStep.target)}
+              >
+                {nextOnboardingStep.key === 'zone' && !subscriptionUsable ? 'Choose plan' : 'Continue setup'}
+              </button>
+            </div>
+          )}
+        </section>
+
         {organization && (
-          <section className="billing-panel">
+          <section id="onboarding-billing" className="billing-panel">
             <div className="billing-head">
               <div>
                 <div className="eyebrow">Your Plan</div>
@@ -865,7 +977,7 @@ function DashboardApp() {
         {dataMsg && <div className="data-message">{dataMsg}</div>}
 
         {!organization ? (
-          <section className="setup-panel">
+          <section id="onboarding-organization" className="setup-panel">
             <div>
               <div className="eyebrow">Step 01</div>
               <h2>Create your hotel organization</h2>
@@ -879,7 +991,7 @@ function DashboardApp() {
           </section>
         ) : (
           <>
-            <section className="workspace-grid">
+            <section id="onboarding-spaces" className="workspace-grid">
               <article className="panel">
                 <div className="eyebrow">Locations</div>
                 <h2>Add location</h2>
@@ -927,7 +1039,7 @@ function DashboardApp() {
               </article>
             </section>
 
-            <section className="location-list">
+            <section id="onboarding-sound" className="location-list">
               <div className="section-heading">
                 <div>
                   <div className="eyebrow">Your spaces</div>
@@ -984,7 +1096,7 @@ function DashboardApp() {
               )}
             </section>
 
-            <section className="devices-section">
+            <section id="onboarding-player" className="devices-section">
               <div className="section-heading">
                 <div>
                   <div className="eyebrow">Playback network</div>
